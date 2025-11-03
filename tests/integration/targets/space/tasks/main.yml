@@ -1,0 +1,174 @@
+# Copyright (c) 2025, zupersero
+# GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+- name: Test space module
+  module_defaults:
+    zupersero.elastic.space:
+      url: https://localhost:5601
+      username: elastic
+      password: changeme
+      validate_certs: false
+
+  block:
+    # Test 1: Create space in check mode
+    - name: Create space in check mode
+      zupersero.elastic.space:
+        id: test-integration-space
+        name: Test Integration Space
+        description: Space for integration testing
+        state: present
+      check_mode: true
+      register: create_check
+
+    - name: Assert check mode create shows changed
+      ansible.builtin.assert:
+        that:
+          - create_check is changed
+          - create_check.space.id == 'test-integration-space'
+          - create_check.space.name == 'Test Integration Space'
+
+    # Test 2: Create space for real
+    - name: Create space
+      zupersero.elastic.space:
+        id: test-integration-space
+        name: Test Integration Space
+        description: Space for integration testing
+        disabled_features:
+          - canvas
+        state: present
+      register: create_result
+
+    - name: Assert space was created
+      ansible.builtin.assert:
+        that:
+          - create_result is changed
+          - create_result.space.id == 'test-integration-space'
+          - create_result.space.name == 'Test Integration Space'
+          - create_result.space.description == 'Space for integration testing'
+          - "'canvas' in create_result.space.disabledFeatures"
+          - create_result.diff.before == {}
+          - create_result.diff.after.id == 'test-integration-space'
+
+    # Test 3: Create space again (idempotency check)
+    - name: Create space again (should not change)
+      zupersero.elastic.space:
+        id: test-integration-space
+        name: Test Integration Space
+        description: Space for integration testing
+        disabled_features:
+          - canvas
+        state: present
+      register: create_again
+
+    - name: Assert space was not changed
+      ansible.builtin.assert:
+        that:
+          - create_again is not changed
+          - create_again.space.id == 'test-integration-space'
+
+    # Test 4: Update space in check mode
+    - name: Update space in check mode
+      zupersero.elastic.space:
+        id: test-integration-space
+        name: Test Integration Space Updated
+        description: Updated description for testing
+        disabled_features:
+          - canvas
+          - maps
+        state: present
+      check_mode: true
+      register: update_check
+
+    - name: Assert check mode update shows changed
+      ansible.builtin.assert:
+        that:
+          - update_check is changed
+          - update_check.diff.before.name == 'Test Integration Space'
+          - update_check.diff.after.name == 'Test Integration Space Updated'
+
+    # Test 5: Update space for real
+    - name: Update space
+      zupersero.elastic.space:
+        id: test-integration-space
+        name: Test Integration Space Updated
+        description: Updated description for testing
+        disabled_features:
+          - canvas
+          - maps
+        state: present
+      register: update_result
+
+    - name: Assert space was updated
+      ansible.builtin.assert:
+        that:
+          - update_result is changed
+          - update_result.space.name == 'Test Integration Space Updated'
+          - update_result.space.description == 'Updated description for testing'
+          - "'canvas' in update_result.space.disabledFeatures"
+          - "'maps' in update_result.space.disabledFeatures"
+          - update_result.diff.before.name == 'Test Integration Space'
+          - update_result.diff.after.name == 'Test Integration Space Updated'
+
+    # Test 6: Update space again (idempotency check)
+    - name: Update space again (should not change)
+      zupersero.elastic.space:
+        id: test-integration-space
+        name: Test Integration Space Updated
+        description: Updated description for testing
+        disabled_features:
+          - canvas
+          - maps
+        state: present
+      register: update_again
+
+    - name: Assert space was not changed
+      ansible.builtin.assert:
+        that:
+          - update_again is not changed
+
+    # Test 7: Delete space in check mode
+    - name: Delete space in check mode
+      zupersero.elastic.space:
+        id: test-integration-space
+        state: absent
+      check_mode: true
+      register: delete_check
+
+    - name: Assert check mode delete shows changed
+      ansible.builtin.assert:
+        that:
+          - delete_check is changed
+
+    # Test 8: Delete space for real
+    - name: Delete space
+      zupersero.elastic.space:
+        id: test-integration-space
+        state: absent
+      register: delete_result
+
+    - name: Assert space was deleted
+      ansible.builtin.assert:
+        that:
+          - delete_result is changed
+
+    # Test 9: Delete space again (idempotency check)
+    - name: Delete space again (should not change)
+      zupersero.elastic.space:
+        id: test-integration-space
+        state: absent
+      register: delete_again
+
+    - name: Assert space deletion was idempotent
+      ansible.builtin.assert:
+        that:
+          - delete_again is not changed
+
+  always:
+    # Cleanup: ensure space is deleted even if tests fail
+    - name: Cleanup - ensure test space is deleted
+      zupersero.elastic.space:
+        id: test-integration-space
+        state: absent
+      ignore_errors: true
