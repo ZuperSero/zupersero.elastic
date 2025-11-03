@@ -1,5 +1,4 @@
----
-- name: Auto tag
+name: Auto tag
 'on':
   push:
     branches: [main]

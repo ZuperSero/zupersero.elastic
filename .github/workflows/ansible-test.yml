@@ -1,5 +1,3 @@
----
-
 name: Run ansible tests
 on:
   pull_request:
@@ -19,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run ${{ matrix.testing_type }} tests (py ${{ matrix.python }})
-        uses: ansible-community/ansible-test-gh-action@release/v1.17.0
+        uses: ansible-community/ansible-test-gh-action@release/v1
         with:
           ansible-core-version: ${{ matrix.ansible_core }}
           testing-type: ${{ matrix.testing_type }}
