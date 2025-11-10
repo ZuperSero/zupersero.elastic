@@ -115,8 +115,9 @@ class KibanaClient:
         self.api_key = module.params.get("api_key")
         self.validate_certs = module.params.get("validate_certs")
         self.timeout = module.params.get("timeout")
-        self.retries = module.params.get("retries")
-        self.retry_pause = module.params.get("retry_pause")
+        # Convert to int to ensure compatibility with generate_jittered_backoff
+        self.retries = int(module.params.get("retries"))
+        self.retry_pause = int(module.params.get("retry_pause"))
         self.space_id = module.params.get("space")
 
         # Validate that we have either username/password or api_key
@@ -246,7 +247,7 @@ class KibanaClient:
         # Apply retry decorator to the implementation
         retrying_func = self._retry_decorator(self._send_request_impl)
         try:
-            return retrying_func(self, path, method, data, extra_headers)
+            return retrying_func(path, method, data, extra_headers)
         except KibanaRetryableError as e:
             # All retries exhausted
             self.module.fail_json(msg=f"Failed to connect to Kibana after {self.retries} attempts: {str(e)}")

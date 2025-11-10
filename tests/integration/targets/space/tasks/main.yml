@@ -6,13 +6,11 @@
 - name: Test space module
   module_defaults:
     zupersero.elastic.space:
-      url: https://localhost:5601
+      url: http://localhost:5601
       username: elastic
       password: changeme
-      validate_certs: false
 
   block:
-    # Test 1: Create space in check mode
     - name: Create space in check mode
       zupersero.elastic.space:
         id: test-integration-space
@@ -29,7 +27,6 @@
           - create_check.space.id == 'test-integration-space'
           - create_check.space.name == 'Test Integration Space'
 
-    # Test 2: Create space for real
     - name: Create space
       zupersero.elastic.space:
         id: test-integration-space
@@ -47,11 +44,8 @@
           - create_result.space.id == 'test-integration-space'
           - create_result.space.name == 'Test Integration Space'
           - create_result.space.description == 'Space for integration testing'
-          - "'canvas' in create_result.space.disabledFeatures"
-          - create_result.diff.before == {}
-          - create_result.diff.after.id == 'test-integration-space'
+          - create_result.space.disabledFeatures == ['canvas']
 
-    # Test 3: Create space again (idempotency check)
     - name: Create space again (should not change)
       zupersero.elastic.space:
         id: test-integration-space
@@ -68,7 +62,6 @@
           - create_again is not changed
           - create_again.space.id == 'test-integration-space'
 
-    # Test 4: Update space in check mode
     - name: Update space in check mode
       zupersero.elastic.space:
         id: test-integration-space
@@ -85,10 +78,7 @@
       ansible.builtin.assert:
         that:
           - update_check is changed
-          - update_check.diff.before.name == 'Test Integration Space'
-          - update_check.diff.after.name == 'Test Integration Space Updated'
 
-    # Test 5: Update space for real
     - name: Update space
       zupersero.elastic.space:
         id: test-integration-space
@@ -107,11 +97,8 @@
           - update_result.space.name == 'Test Integration Space Updated'
           - update_result.space.description == 'Updated description for testing'
           - "'canvas' in update_result.space.disabledFeatures"
-          - "'maps' in update_result.space.disabledFeatures"
-          - update_result.diff.before.name == 'Test Integration Space'
-          - update_result.diff.after.name == 'Test Integration Space Updated'
+          - "'maps_v2' in update_result.space.disabledFeatures"
 
-    # Test 6: Update space again (idempotency check)
     - name: Update space again (should not change)
       zupersero.elastic.space:
         id: test-integration-space
@@ -128,7 +115,6 @@
         that:
           - update_again is not changed
 
-    # Test 7: Delete space in check mode
     - name: Delete space in check mode
       zupersero.elastic.space:
         id: test-integration-space
@@ -140,8 +126,8 @@
       ansible.builtin.assert:
         that:
           - delete_check is changed
+          - delete_check.space.id == 'test-integration-space'
 
-    # Test 8: Delete space for real
     - name: Delete space
       zupersero.elastic.space:
         id: test-integration-space
@@ -152,8 +138,9 @@
       ansible.builtin.assert:
         that:
           - delete_result is changed
+          - delete_result.space.id == 'test-integration-space'
+          - delete_result.space.name == 'Test Integration Space Updated'
 
-    # Test 9: Delete space again (idempotency check)
     - name: Delete space again (should not change)
       zupersero.elastic.space:
         id: test-integration-space
@@ -165,10 +152,83 @@
         that:
           - delete_again is not changed
 
+    - name: Create space with custom appearance
+      zupersero.elastic.space:
+        id: test-appearance-space
+        name: Appearance Test Space
+        description: Testing custom appearance fields
+        color: "#FF6600"
+        initials: AT
+        solution: classic
+        state: present
+      register: appearance_result
+
+    - name: Assert space with custom appearance was created
+      ansible.builtin.assert:
+        that:
+          - appearance_result is changed
+          - appearance_result.space.id == 'test-appearance-space'
+          - appearance_result.space.name == 'Appearance Test Space'
+          - appearance_result.space.color == '#FF6600'
+          - appearance_result.space.initials == 'AT'
+          - appearance_result.space.solution == 'classic'
+
+    - name: Create space with custom appearance again (should not change)
+      zupersero.elastic.space:
+        id: test-appearance-space
+        name: Appearance Test Space
+        description: Testing custom appearance fields
+        color: "#FF6600"
+        initials: AT
+        solution: classic
+        state: present
+      register: appearance_again
+
+    - name: Assert space was not changed
+      ansible.builtin.assert:
+        that:
+          - appearance_again is not changed
+
+    - name: Update appearance fields
+      zupersero.elastic.space:
+        id: test-appearance-space
+        name: Appearance Test Space Updated
+        description: Updated appearance
+        color: "#0000FF"
+        initials: AU
+        solution: security
+        state: present
+      register: appearance_update
+
+    - name: Assert appearance was updated
+      ansible.builtin.assert:
+        that:
+          - appearance_update is changed
+          - appearance_update.space.name == 'Appearance Test Space Updated'
+          - appearance_update.space.color == '#0000FF'
+          - appearance_update.space.initials == 'AU'
+          - appearance_update.space.solution == 'security'
+
+    - name: Delete appearance test space
+      zupersero.elastic.space:
+        id: test-appearance-space
+        state: absent
+      register: appearance_delete
+
+    - name: Assert appearance test space was deleted
+      ansible.builtin.assert:
+        that:
+          - appearance_delete is changed
+
   always:
-    # Cleanup: ensure space is deleted even if tests fail
     - name: Cleanup - ensure test space is deleted
       zupersero.elastic.space:
         id: test-integration-space
+        state: absent
+      ignore_errors: true
+
+    - name: Cleanup - ensure appearance test space is deleted
+      zupersero.elastic.space:
+        id: test-appearance-space
         state: absent
       ignore_errors: true

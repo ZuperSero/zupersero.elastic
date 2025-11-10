@@ -42,6 +42,35 @@ options:
     type: list
     elements: str
     default: []
+  color:
+    description:
+      - The hexadecimal color code used in the space avatar
+      - By default, the color is automatically generated from the space name
+      - Example C(#FF6600)
+    required: false
+    type: str
+  initials:
+    description:
+      - One or two characters shown in the space avatar
+      - By default, the initials are automatically generated from the space name
+      - Maximum length is 2 characters
+    required: false
+    type: str
+  image_url:
+    description:
+      - The data-URL encoded image to display in the space avatar
+      - If specified, initials will not be displayed
+      - For best results, your image should be 64x64 pixels
+      - Images will not be optimized by this API call
+    required: false
+    type: str
+  solution:
+    description:
+      - The solution view for the space
+      - Determines the default experience when entering the space
+    required: false
+    type: str
+    choices: [ security, oblt, es, classic ]
   state:
     description:
       - Whether the space should exist or not
@@ -129,6 +158,18 @@ EXAMPLES = r'''
       - maps
     state: present
 
+- name: Create a space with custom appearance and solution
+  zupersero.elastic.space:
+    url: https://kibana.example.com
+    api_key: "your-api-key-here"
+    id: security-team
+    name: Security Team
+    description: Security monitoring and investigation space
+    color: "#FF6600"
+    initials: ST
+    solution: security
+    state: present
+
 - name: Update an existing space
   zupersero.elastic.space:
     url: https://kibana.example.com
@@ -204,6 +245,27 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.common.dict_transformations import recursive_diff
 
 
+def normalize_feature_names(features: list[str]) -> list[str]:
+    """
+    Normalize feature names to match Kibana's internal representation.
+
+    Kibana may transform certain feature names when storing them. This function
+    maps user-provided feature names to their actual Kibana equivalents.
+
+    Args:
+        features (list[str]): List of feature names
+
+    Returns:
+        list[str]: List of normalized feature names
+    """
+    # Mapping of user-friendly names to Kibana's internal names
+    feature_mapping = {
+        'maps': 'maps_v2',  # Kibana converts 'maps' to 'maps_v2'
+    }
+
+    return [feature_mapping.get(feature, feature) for feature in features]
+
+
 def build_space_data(module: AnsibleModule) -> dict[str, Any]:
     """
     Build the space data object from module parameters.
@@ -212,14 +274,29 @@ def build_space_data(module: AnsibleModule) -> dict[str, Any]:
         module (AnsibleModule): The Ansible module instance
 
     Returns:
-        dict[str, Any]: Space data dictionary with id, name, description, and disabledFeatures
+        dict[str, Any]: Space data dictionary with all space properties
     """
+    disabled_features = module.params.get('disabled_features', [])
     space_data = {
         'id': module.params['id'],
         'name': module.params.get('name') or module.params['id'],
         'description': module.params.get('description', ''),
-        'disabledFeatures': module.params.get('disabled_features', []),
+        'disabledFeatures': normalize_feature_names(disabled_features),
     }
+
+    # Add optional fields only if they are provided
+    if module.params.get('color') is not None:
+        space_data['color'] = module.params['color']
+
+    if module.params.get('initials') is not None:
+        space_data['initials'] = module.params['initials']
+
+    if module.params.get('image_url') is not None:
+        space_data['imageUrl'] = module.params['image_url']
+
+    if module.params.get('solution') is not None:
+        space_data['solution'] = module.params['solution']
+
     return space_data
 
 
@@ -231,6 +308,7 @@ def normalize_space_data(space_data: dict[str, Any]) -> dict[str, Any]:
     - Ensuring disabledFeatures is always a list
     - Sorting disabledFeatures for consistent comparison
     - Removing fields that are not relevant for comparison
+    - Including all user-configurable fields
 
     Args:
         space_data (dict[str, Any]): Raw space data from Kibana API
@@ -242,13 +320,27 @@ def normalize_space_data(space_data: dict[str, Any]) -> dict[str, Any]:
     if 'disabledFeatures' not in space_data:
         space_data['disabledFeatures'] = []
 
-    # Remove fields that are not relevant for comparison
+    # Build normalized dict with all user-configurable fields
     normalized = {
         'id': space_data.get('id'),
         'name': space_data.get('name'),
         'description': space_data.get('description', ''),
         'disabledFeatures': sorted(space_data.get('disabledFeatures', [])),
     }
+
+    # Add optional fields if present (use None as default to distinguish from empty string)
+    if 'color' in space_data:
+        normalized['color'] = space_data.get('color')
+
+    if 'initials' in space_data:
+        normalized['initials'] = space_data.get('initials')
+
+    if 'imageUrl' in space_data:
+        normalized['imageUrl'] = space_data.get('imageUrl')
+
+    if 'solution' in space_data:
+        normalized['solution'] = space_data.get('solution')
+
     return normalized
 
 
@@ -270,6 +362,10 @@ def main() -> None:
         name=dict(type='str', required=False),
         description=dict(type='str', required=False, default=''),
         disabled_features=dict(type='list', elements='str', required=False, default=[]),
+        color=dict(type='str', required=False),
+        initials=dict(type='str', required=False),
+        image_url=dict(type='str', required=False),
+        solution=dict(type='str', required=False, choices=['security', 'oblt', 'es', 'classic']),
     )
     module = AnsibleModule(
         argument_spec=argument_spec,
@@ -312,10 +408,6 @@ def main() -> None:
                 module.fail_json(msg=f"Failed to create space: {created_space.get('error', 'Unknown error')}")
 
             result['space'] = created_space
-            result['diff'] = {
-                'before': {},
-                'after': normalize_space_data(created_space)
-            }
         else:
             # Space exists, check if update is needed
             current_normalized = normalize_space_data(current_space)
@@ -327,22 +419,30 @@ def main() -> None:
             if diff:
                 # Changes detected
                 result['changed'] = True
-                result['diff'] = {
-                    'before': current_normalized,
-                    'after': desired_normalized
-                }
 
                 if module.check_mode:
                     result['space'] = desired_space
                     module.exit_json(**result)
 
-                # Update the space
+                # Update the space with just the fields we control
+                # Kibana API requires all fields including 'id' in PUT body
                 status_code, updated_space = client.spaces.update(space_id, desired_space)
 
                 if status_code != 200:
-                    module.fail_json(msg=f"Failed to update space: {updated_space.get('error', 'Unknown error')}")
+                    error_details = updated_space.get('error', 'Unknown error') if updated_space else 'Unknown error'
+                    module.fail_json(
+                        msg=f"Failed to update space: {error_details}",
+                        status_code=status_code,
+                        response=updated_space,
+                        update_payload=desired_space
+                    )
 
-                result['space'] = updated_space
+                # Fetch the updated space to ensure we have the latest state
+                status_code, fetched_space = client.spaces.get(space_id)
+                if status_code == 200:
+                    result['space'] = fetched_space
+                else:
+                    result['space'] = updated_space
             else:
                 # No changes needed
                 result['space'] = current_space
@@ -351,6 +451,7 @@ def main() -> None:
         if space_exists:
             # Space exists and should be deleted
             result['changed'] = True
+            result['space'] = current_space
 
             if module.check_mode:
                 module.exit_json(**result)

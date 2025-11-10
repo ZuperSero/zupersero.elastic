@@ -1,0 +1,25 @@
+---
+- name: Setup a demo environment in kibana
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Assert required settings
+      ansible.builtin.assert:
+        that:
+          - kibana_url is defined
+          - kibana_user is defined
+          - kibana_password is defined
+        fail_msg: "kibana_url, kibana_user, and kibana_password must be defined in the inventory or extra vars."
+
+    - name: Create demo space
+      zupersero.elastic.space:
+        url: "{{ kibana_url }}"
+        username: "{{ kibana_user }}"
+        password: "{{ kibana_password }}"
+        validate_certs: false
+        id: demo-space
+        name: Demo Space
+        description: Example space created by the demo playbook
+        color: "#00BFB3"
+        initials: DS
+        state: present
