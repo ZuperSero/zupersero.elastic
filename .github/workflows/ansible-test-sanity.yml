@@ -1,4 +1,4 @@
-name: Run ansible tests
+name: Run ansible sanity tests
 on:
   pull_request:
     branches: [ main ]
@@ -11,15 +11,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        testing_type: [ sanity, integration ]
         python: [ "3.11" ]
         ansible_core: [ "stable-2.14" ]
     steps:
       - uses: actions/checkout@v4
-      - name: Run ${{ matrix.testing_type }} tests (py ${{ matrix.python }})
+      - name: Run sanity tests (py ${{ matrix.python }})
         uses: ansible-community/ansible-test-gh-action@release/v1
         with:
           ansible-core-version: ${{ matrix.ansible_core }}
-          testing-type: ${{ matrix.testing_type }}
+          testing-type: sanity
           target-python-version: ${{ matrix.python }}
           controller-python-version: auto
