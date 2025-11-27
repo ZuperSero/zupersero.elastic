@@ -1,0 +1,89 @@
+---
+- name: Make sure dependent packages are installed
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - gnupg
+    state: present
+    update_cache: true
+
+- name: Setup gpg key
+  block:
+  - name: Get apt key
+    ansible.builtin.get_url:
+      url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+      dest: /tmp/elastic.gpg
+      checksum: sha256:db52809c5f6b27f9c2bed45cb43e398c659275f3d35305653c6750a0db90f5eb
+      owner: root
+      group: root
+      mode: '0644'
+
+  - name: Get gpg fingerprint from downloaded key
+    ansible.builtin.command:
+      cmd: "gpg --with-fingerprint --show-keys /tmp/elastic.gpg"
+    register: gpg_fingerprint
+    changed_when: false
+
+  - name: Fail if mismatched gpg fingerprint
+    ansible.builtin.fail:
+      msg: "GPG fingerprint does not match expected value!"
+    when: "'4609 5ACC 8548 582C 1A26  99A9 D27D 666C D88E 42B4' not in gpg_fingerprint.stdout"
+
+  rescue:
+    - name: Delete invalid gpg key
+      ansible.builtin.file:
+        path: /tmp/elastic.gpg
+        state: absent
+
+    - name: Fail due to invalid gpg key
+      ansible.builtin.fail:
+        msg: "Failed to validate GPG key for Elasticsearch repository."
+
+- name: Ensure apt keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Dearmor gpg key
+  ansible.builtin.command:
+    cmd: "gpg --dearmor -o /etc/apt/keyrings/elastic.gpg /tmp/elastic.gpg"
+  args:
+    creates: /etc/apt/keyrings/elastic.gpg
+
+- name: Add repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/elastic.gpg] https://artifacts.elastic.co/packages/{{ elasticsearch_major_version }}.x/apt stable main"
+    state: present
+    filename: "elastic-{{ elasticsearch_major_version }}.x"
+    update_cache: true
+
+- name: Get the apt package facts
+  ansible.builtin.package_facts:
+    manager: apt
+
+- name: Install block
+  when: >
+    'elasticsearch' not in ansible_facts.packages or
+    ansible_facts.packages.elasticsearch[0].version != elasticsearch_version
+  block:
+  - name: Unhold elasticsearch
+    ansible.builtin.dpkg_selections:
+      name: elasticsearch
+      selection: install
+    when: "'elasticsearch' in ansible_facts.packages"
+
+  - name: Install Elasticsearch package
+    ansible.builtin.apt:
+      name: "elasticsearch={{ elasticsearch_version }}"
+      state: present
+      update_cache: true
+      allow_downgrade: "{{ elasticsearch_allow_downgrade }}"
+
+  - name: Hold elasticsearch
+    ansible.builtin.dpkg_selections:
+      name: elasticsearch
+      selection: hold

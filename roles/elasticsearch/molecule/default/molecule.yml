@@ -1,0 +1,27 @@
+---
+role_name_check: 1
+dependency:
+  name: galaxy
+  options:
+    ignore-errors: true
+driver:
+  name: docker
+platforms:
+  - name: ubuntu24.04
+    image: antmelekhin/docker-systemd:ubuntu-24.04
+  - name: debian13
+    image: antmelekhin/docker-systemd:debian-13
+    packages:
+      - procps
+  - name: rocky10
+    image: antmelekhin/docker-systemd:rockylinux-10
+provisioner:
+  name: ansible
+  playbooks:
+    create: create.yml
+    prepare: prepare.yml
+    converge: converge.yml
+    destroy: destroy.yml
+  config_options:
+    defaults:
+      interpreter_python: auto_silent

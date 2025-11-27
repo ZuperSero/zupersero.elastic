@@ -1,0 +1,27 @@
+---
+- name: Prepare
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Get platform configuration
+      ansible.builtin.set_fact:
+        platform_config: "{{ molecule_yml.platforms | selectattr('name', 'equalto', inventory_hostname) | first }}"
+
+    - name: Install platform-specific packages (Debian)
+      ansible.builtin.apt:
+        name: "{{ platform_config.packages }}"
+        state: present
+        update_cache: true
+      when:
+        - platform_config.packages is defined
+        - platform_config.packages | length > 0
+        - ansible_facts["os_family"] == "Debian"
+
+    - name: Install platform-specific packages (RedHat)
+      ansible.builtin.dnf:
+        name: "{{ platform_config.packages }}"
+        state: present
+      when:
+        - platform_config.packages is defined
+        - platform_config.packages | length > 0
+        - ansible_facts["os_family"] == "RedHat"

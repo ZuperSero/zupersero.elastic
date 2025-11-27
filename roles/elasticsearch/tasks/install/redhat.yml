@@ -1,0 +1,50 @@
+---
+- name: Install depndencies
+  ansible.builtin.dnf:
+    name:
+    - gnupg2
+    # - dnf-plugins-core
+    - python3-dnf-plugin-versionlock
+    state: present
+
+- name: Import GPG key
+  ansible.builtin.rpm_key:
+    state: present
+    key: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    fingerprint: "46095ACC8548582C1A2699A9D27D666CD88E42B4"
+
+
+- name: Add Elasticsearch repository
+  ansible.builtin.yum_repository:
+    name: elastic-{{ elasticsearch_major_version }}.x
+    description: "Elastic repository for {{ elasticsearch_major_version }}.x packages"
+    baseurl: "https://artifacts.elastic.co/packages/{{ elasticsearch_major_version }}.x/yum"
+    gpgcheck: true
+    gpgkey: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+
+- name: Get the apt package facts
+  ansible.builtin.package_facts:
+    manager: dnf
+
+- name: Install block
+  when: >
+    'elasticsearch' not in ansible_facts.packages or
+    ansible_facts.packages.elasticsearch[0].version != elasticsearch_version
+  block:
+  - name: Remove versionlock elasticsearch
+    community.general.dnf_versionlock:
+      name: elasticsearch
+      state: absent
+
+  - name: Install elasticsearch package
+    ansible.builtin.yum:
+      name: "elasticsearch-{{ elasticsearch_version }}"
+      state: present
+
+  - name: Versionlock elasticsearch
+    community.general.dnf_versionlock:
+      name: elasticsearch
+      state: present
+
+
+
