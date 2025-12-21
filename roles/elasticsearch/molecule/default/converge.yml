@@ -1,8 +1,17 @@
 ---
 - name: Converge
-  hosts: all
+  hosts: molecule
   gather_facts: true
   tasks:
+    - name: Converge flag
+      ansible.builtin.debug:
+        msg: |
+          ***************************************
+          ***************************************
+          ********* Converge Started ************
+          ***************************************
+          ***************************************
+
     - name: Apply elasticsearch role
       ansible.builtin.include_role:
         name: zupersero.elastic.elasticsearch

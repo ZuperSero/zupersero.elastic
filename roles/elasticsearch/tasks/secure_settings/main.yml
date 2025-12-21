@@ -1,0 +1,66 @@
+---
+- name: Create the keystore if it doesn't exist yet
+  ansible.builtin.command:
+    cmd: "{{ elasticsearch_home }}/bin/elasticsearch-keystore create"
+  args:
+    creates: "{{ elasticsearch_path_conf }}/elasticsearch.keystore"
+
+- name: Add secure configurations to keystore
+  when: item.value is not none
+  ansible.builtin.shell:
+    cmd: "echo {{ item.value | quote }} | {{ elasticsearch_home }}/bin/elasticsearch-keystore add -x -f {{ item.key }}"
+  loop: "{{ elasticsearch_secure_config | dict2items }}"
+  changed_when: true
+  no_log: true
+  notify:
+    - Restart Elasticsearch
+
+- name: List keys
+  ansible.builtin.command:
+    cmd: "{{ elasticsearch_home }}/bin/elasticsearch-keystore list"
+  register: _keystore_list
+  changed_when: false
+
+- name: Remove secure configurations not in elasticsearch_secure_config
+  when:
+    - key not in (elasticsearch_secure_config.keys() | list)
+    - key != 'bootstrap.password'  # Managed separately
+  ansible.builtin.command: "{{ elasticsearch_home }}/bin/elasticsearch-keystore remove {{ key }}"
+  loop: "{{ _keystore_list.stdout_lines }}"
+  loop_control:
+    loop_var: key
+  changed_when: true
+
+- name: Set bootstrap password
+  when:
+    - elasticsearch_bootstrap
+    - elasticsearch_bootstrap_password | length > 0
+  ansible.builtin.shell:
+    cmd: "echo {{ elasticsearch_bootstrap_password | quote }} | {{ elasticsearch_home }}/bin/elasticsearch-keystore add -x -f bootstrap.password"
+  no_log: true
+
+- name: Unset bootstrap password (when not bootstrapping)
+  when:
+    - not elasticsearch_bootstrap
+    - "'bootstrap.password' in _keystore_list.stdout_lines"
+  ansible.builtin.shell:
+    cmd: "{{ elasticsearch_home }}/bin/elasticsearch-keystore remove bootstrap.password"
+  register: _unset_bootstrap_password
+  failed_when:
+    - _unset_bootstrap_password.rc not in [0, 65]  # 65 = key doesn't exist
+
+- name: Ensure config directory has correct permissions
+  ansible.builtin.file:
+    path: "{{ elasticsearch_path_conf }}"
+    state: directory
+    owner: "{{ elasticsearch_user }}"
+    group: "{{ elasticsearch_group }}"
+    mode: "0750"
+
+- name: Set elasticsearch.keystore permissions
+  ansible.builtin.file:
+    state: file
+    path: "{{ elasticsearch_path_conf }}/elasticsearch.keystore"
+    owner: "{{ elasticsearch_user }}"
+    group: "{{ elasticsearch_group }}"
+    mode: "0660"

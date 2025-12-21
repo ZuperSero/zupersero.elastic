@@ -19,6 +19,12 @@
   tags:
     - configure
 
+- name: Configure Elasticsearch keystore
+  ansible.builtin.include_tasks: "./secure_settings1/main.yml"
+  when: elasticsearch_config_content.xpack.security.enabled | default(false)
+  tags:
+    - configure_keystore
+
 - name: Flush handlers
   ansible.builtin.meta: flush_handlers
 

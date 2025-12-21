@@ -1,9 +1,8 @@
 ---
-- name: Install depndencies
+- name: Install dependencies
   ansible.builtin.dnf:
     name:
     - gnupg2
-    # - dnf-plugins-core
     - python3-dnf-plugin-versionlock
     state: present
 
@@ -22,7 +21,7 @@
     gpgcheck: true
     gpgkey: https://artifacts.elastic.co/GPG-KEY-elasticsearch
 
-- name: Get the apt package facts
+- name: Get package facts
   ansible.builtin.package_facts:
     manager: dnf
 

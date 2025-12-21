@@ -1,6 +1,6 @@
 ---
 elasticsearch_major_version: "{{ elasticsearch_version.split('.')[0] | default('9') }}"
-elasticsearch_config_dir: "{{ '/etc/elasticsearch' if elasticsearch_install_method == 'package' else '/usr/share/elasticsearch/config' }}"
+elasticsearch_path_conf: "{{ '/etc/elasticsearch' if elasticsearch_install_method == 'package' else elasticsearch_home + '/config' }}"
 
 # Base JVM options (internal, always included)
 _elasticsearch_jvm_base_options: |

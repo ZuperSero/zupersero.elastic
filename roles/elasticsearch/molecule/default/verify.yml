@@ -5,6 +5,11 @@
   hosts: instance
   gather_facts: false # Quicker, if you do not need facts
   tasks:
-    - name: Assert something
-      ansible.builtin.assert:
-        that: true
+    - name: Read elasticsearch log file
+      ansible.builtin.slurp:
+        path: /var/log/elasticsearch/{{ elasticsearch_config_content.cluster.name }}.log
+      register: es_log
+
+    - name: Debug
+      ansible.builtin.debug:
+        var: es_log
