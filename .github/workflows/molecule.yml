@@ -53,4 +53,4 @@ jobs:
         run: molecule test --scenario-name ${{ matrix.scenario }}
         working-directory: extensions
         env:
-          ANSIBLE_FORKS: 1
+          ANSIBLE_FORKS: "1"

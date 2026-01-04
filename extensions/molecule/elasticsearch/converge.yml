@@ -17,6 +17,7 @@
         name: zupersero.elastic.elasticsearch
       vars:
         elasticsearch_bootstrap: true
+        elasticsearch_jvm_heap_size: "4g"
       tags:
         - molecule-idempotence-notest
 
@@ -25,3 +26,4 @@
         name: zupersero.elastic.elasticsearch
       vars:
         elasticsearch_bootstrap: false
+        elasticsearch_jvm_heap_size: "4g"
