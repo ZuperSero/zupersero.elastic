@@ -2,8 +2,8 @@
 - name: Install dependencies
   ansible.builtin.dnf:
     name:
-    - gnupg2
-    - python3-dnf-plugin-versionlock
+      - gnupg2
+      - python3-dnf-plugin-versionlock
     state: present
 
 - name: Import GPG key
@@ -30,20 +30,17 @@
     'elasticsearch' not in ansible_facts.packages or
     ansible_facts.packages.elasticsearch[0].version != elasticsearch_version
   block:
-  - name: Remove versionlock elasticsearch
-    community.general.dnf_versionlock:
-      name: elasticsearch
-      state: absent
+    - name: Remove versionlock elasticsearch
+      community.general.dnf_versionlock:
+        name: elasticsearch
+        state: absent
 
-  - name: Install elasticsearch package
-    ansible.builtin.yum:
-      name: "elasticsearch-{{ elasticsearch_version }}"
-      state: present
+    - name: Install elasticsearch package
+      ansible.builtin.dnf:
+        name: "elasticsearch-{{ elasticsearch_version }}"
+        state: present
 
-  - name: Versionlock elasticsearch
-    community.general.dnf_versionlock:
-      name: elasticsearch
-      state: present
-
-
-
+    - name: Versionlock elasticsearch
+      community.general.dnf_versionlock:
+        name: elasticsearch
+        state: present

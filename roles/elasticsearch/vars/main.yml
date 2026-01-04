@@ -6,4 +6,3 @@ elasticsearch_path_conf: "{{ '/etc/elasticsearch' if elasticsearch_install_metho
 _elasticsearch_jvm_base_options: |
   -Xms{{ elasticsearch_jvm_heap_size }}
   -Xmx{{ elasticsearch_jvm_heap_size }}
-

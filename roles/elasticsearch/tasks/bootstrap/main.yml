@@ -1,0 +1,54 @@
+---
+- name: Warning
+  ansible.builtin.debug:
+    msg: |
+      WARNING!!
+      Bootstrap should only run once on a new cluster. If you are re-running this on an existing cluster make sure elasticsearch is not running.
+      Bootstrapping will:
+        - Delete your current keystore
+        - Creates a new empty keystore
+        - Creates a boostrap password in the keystore
+        - Delete automatically created certificates in /etc/elasticsearch/certs
+  run_once: true
+
+- name: Pause for confirmation
+  ansible.builtin.pause:
+    seconds: 10
+
+- name: Get service information
+  ansible.builtin.service_facts:
+
+- name: Fail if elasticsearch is already running
+  ansible.builtin.fail:
+    msg: "Elasticsearch is running, if you are trying to re-bootstrap an existing cluster, please stop elasticsearch first"
+  when: "'elasticsearch' in ansible_facts.services and ansible_facts.services.elasticsearch.state == 'running'"
+
+- name: Remove existing elasticsearch keystore
+  ansible.builtin.file:
+    state: absent
+    path: "{{ elasticsearch_path_conf }}/elasticsearch.keystore"
+
+- name: Create the keystore if it doesn't exist yet
+  ansible.builtin.command:
+    cmd: "{{ elasticsearch_home }}/bin/elasticsearch-keystore create"
+  args:
+    creates: "{{ elasticsearch_path_conf }}/elasticsearch.keystore"
+
+- name: Set bootstrap password # noqa no-changed-when
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      echo {{ elasticsearch_bootstrap_password | quote }} | {{ elasticsearch_home }}/bin/elasticsearch-keystore add -x -f bootstrap.password
+    executable: /bin/bash
+  no_log: true
+
+- name: Remove existing certificates
+  ansible.builtin.file:
+    state: absent
+    path: "{{ elasticsearch_path_conf }}/certs/{{ item }}"
+  loop:
+    - "http.p12"
+    - "http_ca.crt"
+    - "transport.p12"
+  loop_control:
+    label: "{{ item }}"

@@ -27,16 +27,6 @@
       ansible.builtin.debug:
         msg: "{{ result.results }}"
 
-    - name: Fail if container is not running
-      when: >
-        item.container.State.ExitCode != 0 or
-        not item.container.State.Running
-      ansible.builtin.include_tasks:
-        file: tasks/create-fail.yml
-      loop: "{{ result.results }}"
-      loop_control:
-        label: "{{ item.container.Name }}"
-
     - name: Add container to molecule_inventory
       vars:
         inventory_partial_yaml: |

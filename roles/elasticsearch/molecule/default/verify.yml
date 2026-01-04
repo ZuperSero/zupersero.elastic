@@ -1,15 +1,55 @@
 ---
-# Purpose: assert that the instance really ended up in the expected state.
-# Molecule calls this playbook with `molecule verify`.
 - name: Verify
-  hosts: instance
-  gather_facts: false # Quicker, if you do not need facts
+  hosts: molecule
+  gather_facts: false
   tasks:
-    - name: Read elasticsearch log file
+    - name: Check for errors in log # noqa var-naming[no-role-prefix]
       ansible.builtin.slurp:
-        path: /var/log/elasticsearch/{{ elasticsearch_config_content.cluster.name }}.log
+        path: /var/log/elasticsearch/my_cluster.log
       register: es_log
 
-    - name: Debug
+    - name: Fail if errors found in log
+      ansible.builtin.fail:
+        msg: "Errors found in Elasticsearch log:\n{{ es_log.content | b64decode }}"
+      when: "'ERROR' in (es_log.content | b64decode)"
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Check if elasticsearch is running
+      ansible.builtin.assert:
+        that:
+          - "'elasticsearch.service' in ansible_facts.services"
+          - "ansible_facts.services['elasticsearch.service'].state == 'running'"
+
+    - name: Verify Elasticsearch is responding on port 9200
+      ansible.builtin.uri:
+        url: http://localhost:9200
+        method: GET
+        user: elastic
+        password: "changeme"
+        force_basic_auth: true
+        status_code: 200
+      register: elasticsearch_health
+      retries: 10
+      delay: 3
+      until: elasticsearch_health.status == 200
+
+    - name: Display Elasticsearch cluster info
       ansible.builtin.debug:
-        var: es_log
+        msg: "Elasticsearch cluster '{{ elasticsearch_health.json.cluster_name }}' is running version {{ elasticsearch_health.json.version.number }}"
+
+    - name: Verify cluster health is at least yellow # noqa var-naming[no-role-prefix]
+      ansible.builtin.uri:
+        url: http://localhost:9200/_cluster/health
+        method: GET
+        user: elastic
+        password: "changeme"
+        force_basic_auth: true
+        return_content: true
+      register: cluster_health
+      failed_when: cluster_health.json.status not in ["green", "yellow"]
+
+    - name: Display cluster health status
+      ansible.builtin.debug:
+        msg: "Cluster health status: {{ cluster_health.json.status }}"

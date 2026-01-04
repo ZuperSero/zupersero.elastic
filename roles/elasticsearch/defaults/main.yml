@@ -40,10 +40,8 @@ elasticsearch_jvm_extra_options: ""
 
 # security settings
 
-elasticsearch_security_enabled: true
-
 elasticsearch_security_enable_default: false
 
 elasticsearch_secure_config: {}
 
-elasticsearch_bootstrap_password: ""
+elasticsearch_bootstrap_password: "changeme"

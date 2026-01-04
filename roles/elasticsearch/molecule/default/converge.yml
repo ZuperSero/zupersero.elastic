@@ -12,6 +12,16 @@
           ***************************************
           ***************************************
 
-    - name: Apply elasticsearch role
+    - name: Apply elasticsearch role with bootstrap
       ansible.builtin.include_role:
         name: zupersero.elastic.elasticsearch
+      vars:
+        elasticsearch_bootstrap: true
+      tags:
+        - molecule-idempotence-notest
+
+    - name: Apply elasticsearch role without bootstrap
+      ansible.builtin.include_role:
+        name: zupersero.elastic.elasticsearch
+      vars:
+        elasticsearch_bootstrap: false
