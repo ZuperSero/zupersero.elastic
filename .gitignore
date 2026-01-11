@@ -208,3 +208,5 @@ __marimo__/
 
 .vscode
 .ansible
+
+tests/output

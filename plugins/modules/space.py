@@ -14,7 +14,7 @@ description:
   - This module provides idempotent management of Kibana Spaces
 version_added: "1.0.0"
 author:
-  - zupersero
+  - Zupersero (@zupersero)
 options:
   id:
     description:
@@ -112,6 +112,35 @@ options:
       - Can also be set via the KIBANA_VALIDATE_CERTS environment variable
     type: bool
     default: true
+  client_cert:
+    description:
+      - PEM formatted certificate chain file to be used for SSL client authentication
+    type: path
+  client_key:
+    description:
+      - PEM formatted file that contains your private key to be used for SSL client authentication
+    type: path
+  force_basic_auth:
+    description:
+      - Force the sending of the Basic authentication header upon initial request
+    type: bool
+    default: false
+  url_username:
+    description:
+      - Username for URL-based authentication
+      - This is used for HTTP basic auth in the URL itself
+    type: str
+  url_password:
+    description:
+      - Password for URL-based authentication
+      - This is used for HTTP basic auth in the URL itself
+    type: str
+  space:
+    description:
+      - The Kibana space to use for API operations
+      - Can also be set via the KIBANA_SPACE environment variable
+    type: str
+    default: 'default'
   timeout:
     description:
       - Timeout in seconds for API requests
@@ -122,11 +151,11 @@ options:
       - Number of times to retry failed requests
     type: int
     default: 3
-  retry_interval:
+  retry_pause:
     description:
       - Seconds to wait between retry attempts
-    type: int
-    default: 10
+    type: float
+    default: 1.0
 requirements:
   - ansible.module_utils.urls
 notes:

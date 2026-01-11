@@ -67,6 +67,7 @@ def kibana_argument_spec() -> dict[str, dict[str, Any]]:
     )
     return argument_spec
 
+
 def kibana_required_together() -> list[list[str]]:
     """
     Define required_together constraints for Kibana modules.
@@ -75,6 +76,7 @@ def kibana_required_together() -> list[list[str]]:
         list[list[str]]: Empty list as there are no required_together constraints
     """
     return []
+
 
 def kibana_required_if() -> list[list[str]]:
     """
@@ -85,6 +87,7 @@ def kibana_required_if() -> list[list[str]]:
     """
     return []
 
+
 def kibana_mutually_exclusive() -> list[list[str]]:
     """
     Define mutually_exclusive constraints for Kibana modules.
@@ -93,6 +96,7 @@ def kibana_mutually_exclusive() -> list[list[str]]:
         list[list[str]]: Empty list as there are no mutually_exclusive constraints
     """
     return []
+
 
 class KibanaClient:
     """
