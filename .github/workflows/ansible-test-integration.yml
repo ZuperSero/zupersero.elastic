@@ -21,7 +21,7 @@ jobs:
                 ansible_core: ["v2.19.5"]
         steps:
             - name: Get elasticsearch
-              run: curl -fsSL https://elastic.co/start-local | sh -v ${{ matrix.elastic }}
+              run: curl -fsSL https://elastic.co/start-local | sh -s -- -v ${{ matrix.elastic }}
 
             - name: Edit .env file
               run: |

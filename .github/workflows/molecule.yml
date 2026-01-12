@@ -5,6 +5,10 @@ on:
         branches:
             - main
             - dev
+        paths:
+            - 'extensions/**'
+            - 'roles/**'
+            - '.github/workflows/molecule.yml'
 
 jobs:
     # First job: discover all scenarios
