@@ -12,7 +12,7 @@ jobs:
       fail-fast: false
       matrix:
         elastic: [ "9.2.0" ]
-        ansible_core: [ "stable-2.14" ]
+        ansible_core: [ "v2.19.5" ]
     steps:
       - name: Get elasticsearch
         run: curl -fsSL https://elastic.co/start-local | sh
@@ -35,6 +35,11 @@ jobs:
           ES_LOCAL_API_KEY=VnhJQVZwb0JkbG93aG10STB2c246TTZ5ZVZXNUEtVFdFZkNITjdLSG90QQ==
           EOF
 
+      - name: Raise vm.max_map_count for Elasticsearch
+        run: |
+          sudo sysctl -w vm.max_map_count=1048576
+          cat /proc/sys/vm/max_map_count
+
       - name: Start elastic
         run: elastic-start-local/start.sh
 
@@ -53,18 +58,12 @@ jobs:
           done
 
       - uses: actions/checkout@v4
-
-      - name: Raise vm.max_map_count for Elasticsearch
-        run: |
-          sudo sysctl -w vm.max_map_count=1048576
-          cat /proc/sys/vm/max_map_count
-
-      - name: Run integration tests (py ${{ matrix.python }})
+      - name: Run integration tests (py 3.11.13)
         uses: ansible-community/ansible-test-gh-action@release/v1
         with:
           ansible-core-version: ${{ matrix.ansible_core }}
           testing-type: integration
-          target-python-version: 3.13.9
+          target-python-version: 3.11.13
           controller-python-version: auto
 
       - name: Dump docker logs on failure
