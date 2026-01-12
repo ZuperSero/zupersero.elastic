@@ -21,10 +21,11 @@ jobs:
                 ansible_core: ["v2.19.5"]
         steps:
             - name: Get elasticsearch
-              run: curl -fsSL https://elastic.co/start-local | sh
+              run: curl -fsSL https://elastic.co/start-local | sh -v ${{ matrix.elastic }}
 
             - name: Edit .env file
               run: |
+                  mkdir -p elastic-start-local
                   cat > elastic-start-local/.env << 'EOF'
                   ES_LOCAL_VERSION=${{ matrix.elastic }}
                   ES_LOCAL_CONTAINER_NAME=es-local-dev
