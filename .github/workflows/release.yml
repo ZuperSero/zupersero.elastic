@@ -2,18 +2,18 @@
 # https://github.com/marketplace/actions/deploy-ansible-galaxy-collection
 
 name: Release
-'on':
-  push:
-    tags:
-      - '*'
+"on":
+    push:
+        tags:
+            - "*"
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
+    deploy:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
 
-      - name: Deploy the collection
-        uses: artis3n/ansible_galaxy_collection@v2.11.0
-        with:
-          api_key: ${{ secrets.GALAXY_API_KEY }}
+            - name: Deploy the collection
+              uses: artis3n/ansible_galaxy_collection@v2.11.0
+              with:
+                  api_key: ${{ secrets.GALAXY_API_KEY }}

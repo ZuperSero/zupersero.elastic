@@ -1,32 +1,32 @@
 name: Auto tag
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'galaxy.yml'
+    push:
+        branches: [main]
+        paths:
+            - "galaxy.yml"
 
 permissions:
-  contents: write
+    contents: write
 
 jobs:
-  tag-from-galaxy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    tag-from-galaxy:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
 
-      - name: Tag if needed
-        run: |
-          VERSION=$(awk -F': *' '/^version:/ {print $2}' galaxy.yml | tr -d '[:space:]')
-          TAG="${VERSION}"
+            - name: Tag if needed
+              run: |
+                  VERSION=$(awk -F': *' '/^version:/ {print $2}' galaxy.yml | tr -d '[:space:]')
+                  TAG="${VERSION}"
 
-          if git tag -l | grep -q "^${TAG}$"; then
-            echo "Tag ${TAG} already exists, skipping."
-          else
-            echo "Creating tag ${TAG}"
-            git config user.name "${GITHUB_ACTOR}"
-            git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
-            git tag -a "${TAG}" -m "Release ${TAG} (from galaxy.yml)"
-            git push origin "${TAG}"
-          fi
+                  if git tag -l | grep -q "^${TAG}$"; then
+                    echo "Tag ${TAG} already exists, skipping."
+                  else
+                    echo "Creating tag ${TAG}"
+                    git config user.name "${GITHUB_ACTOR}"
+                    git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+                    git tag -a "${TAG}" -m "Release ${TAG} (from galaxy.yml)"
+                    git push origin "${TAG}"
+                  fi
