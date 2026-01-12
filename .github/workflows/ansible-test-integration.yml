@@ -79,13 +79,6 @@ jobs:
               with:
                   ansible-core-version: ${{ matrix.ansible_core }}
                   testing-type: integration
-                  target-python-version: 3.11.13
+                  target-python-version: 3.11
                   controller-python-version: auto
 
-            - name: Dump docker logs on failure
-              if: failure()
-              run: |
-                  docker ps -a
-                  docker logs es-local-dev || true
-                  docker logs kibana-local-dev || true
-                  docker logs kibana-local-settings || true
