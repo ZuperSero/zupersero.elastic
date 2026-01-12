@@ -14,4 +14,6 @@ molecule:
     molecule test --scenario-name elasticsearch
 
 sanity:
-    .venv/bin/ansible-test sanity
+    .venv/bin/ansible-test sanity --coverage
+    .venv/bin/ansible-test coverage report --include 'plugins/*'
+
