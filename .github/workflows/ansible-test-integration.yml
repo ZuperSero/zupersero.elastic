@@ -42,27 +42,36 @@ jobs:
                   ES_LOCAL_API_KEY=VnhJQVZwb0JkbG93aG10STB2c246TTZ5ZVZXNUEtVFdFZkNITjdLSG90QQ==
                   EOF
 
-            - name: Raise vm.max_map_count for Elasticsearch
-              run: |
-                  sudo sysctl -w vm.max_map_count=1048576
-                  cat /proc/sys/vm/max_map_count
-
             - name: Start elastic
               run: elastic-start-local/start.sh
 
             - name: Wait for Elasticsearch
               run: |
-                  until curl -s http://localhost:9200/_cluster/health | grep -q '"status":"green\|yellow"'; do
-                    echo "Waiting for Elasticsearch..."
-                    sleep 5
-                  done
+                set -euo pipefail
+                for i in {1..15}; do
+                if curl -fsS -u "elastic:changeme" "http://localhost:9200/_cluster/health" | grep -qE '"status":"(green|yellow)"'; then
+                    echo "Elasticsearch is ready."
+                    exit 0
+                fi
+                echo "Waiting for Elasticsearch... ($i/15)"
+                sleep 5
+                done
+                echo "Elasticsearch did not become ready after 15 attempts."
+                exit 1
 
             - name: Wait for Kibana
               run: |
-                  until curl -s http://localhost:5601/api/status | grep -q '"level":"available"'; do
-                    echo "Waiting for Kibana..."
-                    sleep 5
-                  done
+                set -euo pipefail
+                for i in {1..15}; do
+                if curl -fsS -u "elastic:changeme" -H "kbn-xsrf: true" "http://localhost:5601/api/status" | grep -q '"level":"available"'; then
+                    echo "Kibana is ready."
+                    exit 0
+                fi
+                echo "Waiting for Kibana... ($i/15)"
+                sleep 5
+                done
+                echo "Kibana did not become ready after 15 attempts."
+                exit 1
 
             - uses: actions/checkout@v4
             - name: Run integration tests (py 3.11.13)
