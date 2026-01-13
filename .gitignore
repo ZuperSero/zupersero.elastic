@@ -210,3 +210,4 @@ __marimo__/
 .ansible
 
 tests/output
+elastic-start-local

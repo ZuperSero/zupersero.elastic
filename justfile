@@ -17,3 +17,13 @@ sanity:
     .venv/bin/ansible-test sanity --coverage
     .venv/bin/ansible-test coverage report --include 'plugins/*'
 
+elastic:
+    wget https://elastic.co/start-local
+    sed -i 's/check_disk_space_gb ${min_disk_space_required}/#check_disk_space_gb ${min_disk_space_required}/' start-local
+    chmod +x start-local
+    ES_LOCAL_PASSWORD="changeme" ./start-local -v 9.2.0
+    rm start-local
+
+elastic_teardown:
+    elastic-start-local/uninstall.sh
+    rm -rf elastic-start-local
