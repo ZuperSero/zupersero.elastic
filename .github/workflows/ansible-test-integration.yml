@@ -23,9 +23,6 @@ jobs:
             - name: Get elasticsearch
               run: curl -fsSL https://elastic.co/start-local | ES_LOCAL_PASSWORD="changeme" sh -s -- -v ${{ matrix.elastic }}
 
-            - name: Start elastic
-              run: elastic-start-local/start.sh
-
             - name: Wait for Elasticsearch
               run: |
                 set -euo pipefail

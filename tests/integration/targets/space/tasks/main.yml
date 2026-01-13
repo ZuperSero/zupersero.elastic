@@ -3,6 +3,18 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
+- name: Test endpoint
+  ansible.builtin.uri:
+    url: http://localhost:5601/api/status
+    method: GET
+    user: elastic
+    password: changeme
+    force_basic_auth: yes
+    headers:
+      kbn-xsrf: true
+    status_code: 200
+
+
 - name: Test space module
   module_defaults:
     zupersero.elastic.space:
