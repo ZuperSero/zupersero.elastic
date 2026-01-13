@@ -17,6 +17,10 @@ sanity:
     .venv/bin/ansible-test sanity --coverage
     .venv/bin/ansible-test coverage report --include 'plugins/*'
 
+integration:
+    .venv/bin/ansible-test integration --coverage
+    .venv/bin/ansible-test coverage report --include 'plugins/*'
+
 elastic:
     wget https://elastic.co/start-local
     sed -i 's/check_disk_space_gb ${min_disk_space_required}/#check_disk_space_gb ${min_disk_space_required}/' start-local

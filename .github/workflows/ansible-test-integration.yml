@@ -19,6 +19,7 @@ jobs:
             matrix:
                 elastic: ["9.2.0"]
                 ansible_core: ["v2.19.5"]
+                python_version: ["3.11"]
         steps:
             - name: Get elasticsearch
               run: curl -fsSL https://elastic.co/start-local | ES_LOCAL_PASSWORD="changeme" sh -s -- -v ${{ matrix.elastic }}
@@ -52,11 +53,19 @@ jobs:
                 exit 1
 
             - uses: actions/checkout@v4
-            - name: Run integration tests (py 3.11.13)
-              uses: ansible-community/ansible-test-gh-action@release/v1
+
+            - name: Set up Python
+              uses: actions/setup-python@v5
               with:
-                  ansible-core-version: ${{ matrix.ansible_core }}
-                  testing-type: integration
-                  target-python-version: 3.11
-                  controller-python-version: auto
+                  python-version: ${{ matrix.python_version }}
+
+            - name: Install Ansible
+              run: |
+                python -m pip install --upgrade pip
+                pip install ansible-core==${{ matrix.ansible_core }} ansible-lint
+
+            - name: Run integration tests
+              run: |
+                ansible-test integration --coverage
+                ansible-test coverage report --include 'plugins/*'
 
