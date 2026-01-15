@@ -66,6 +66,11 @@ jobs:
         with:
           path: ansible_collections/${{ github.repository_owner }}/elastic
 
+      - name: List directory
+        run: |
+          ls -la
+          pwd
+
       - name: Run integration tests
         working-directory: ansible_collections/${{ github.repository_owner }}/elastic
         run: |
@@ -73,7 +78,7 @@ jobs:
 
       - name: Generate coverage report
         if: always()
-        working-directory: ansible_collections/${{ github.repository_owner }}/elastic
+        working-directory: ansible_collections/${ { github.repository_owner }}/elastic
         run: ansible-test coverage report --include 'plugins/*'
 
       - name: Coverage summary
