@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./ansible_collections/${{ github.repository_owner }}/elastic
+        working-directory: ansible_collections/${{ github.repository_owner }}/elastic
     strategy:
       fail-fast: false
       matrix:
