@@ -67,9 +67,11 @@ jobs:
           path: ansible_collections/${{ github.repository_owner }}/elastic
 
       - name: List directory
+        working-directory: ansible_collections/${{ github.repository_owner }}/elastic
         run: |
           ls -la
           pwd
+
 
       - name: Run integration tests
         working-directory: ansible_collections/${{ github.repository_owner }}/elastic
