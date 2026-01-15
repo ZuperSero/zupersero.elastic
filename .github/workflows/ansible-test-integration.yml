@@ -77,12 +77,10 @@ jobs:
           ansible-test integration --docker default --docker-network host --color --coverage
 
       - name: Generate coverage report
-        if: always()
         working-directory: ansible_collections/${ { github.repository_owner }}/elastic
         run: ansible-test coverage report --include 'plugins/*'
 
       - name: Coverage summary
-        if: always()
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:
           filename: ansible_collections/${{ github.repository_owner }}/elastic/tests/output/reports/coverage.xml
