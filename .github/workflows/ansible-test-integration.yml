@@ -14,6 +14,9 @@ on:
 jobs:
   ansible-test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./ansible_collections/${{ github.repository_owner }}/elastic
     strategy:
       fail-fast: false
       matrix:
@@ -63,18 +66,12 @@ jobs:
           pip install ansible-core==${{ matrix.ansible_core }} ansible-lint coverage
 
       - uses: actions/checkout@v4
-        with:
-          path: ansible_collections/${{ github.repository_owner }}/elastic
 
-      - name: List directory
-        working-directory: ansible_collections/${{ github.repository_owner }}/elastic
-        run: |
-          ls -la
-          pwd
+      - name: Install collection dependencies
+        run: ansible-galaxy collection install .
 
 
       - name: Run integration tests
-        working-directory: ansible_collections/${{ github.repository_owner }}/elastic
         run: |
           ansible-test integration --docker default --docker-network host --color --coverage
 
@@ -85,7 +82,7 @@ jobs:
       - name: Coverage summary
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:
-          filename: ansible_collections/${{ github.repository_owner }}/elastic/tests/output/reports/coverage.xml
+          filename: tests/output/reports/coverage.xml
           format: markdown
           output: both
           badge: true
