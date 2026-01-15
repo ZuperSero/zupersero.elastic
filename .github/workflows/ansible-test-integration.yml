@@ -64,7 +64,7 @@ jobs:
 
 
       - name: make test directory
-        run: mkdir ansible_collections/${{ github.repository_owner }}/elastic
+        run: mkdir -p ansible_collections/${{ github.repository_owner }}/elastic
 
       - uses: actions/checkout@v4
         with:
