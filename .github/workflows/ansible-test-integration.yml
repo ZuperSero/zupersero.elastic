@@ -14,9 +14,6 @@ on:
 jobs:
   ansible-test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ansible_collections/${{ github.repository_owner }}/elastic
     strategy:
       fail-fast: false
       matrix:
@@ -65,13 +62,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install ansible-core==${{ matrix.ansible_core }} ansible-lint coverage
 
+
+      - name: make test directory
+        run: mkdir ansible_collections/${{ github.repository_owner }}/elastic
+
       - uses: actions/checkout@v4
+        with:
+          path: ansible_collections/${{ github.repository_owner }}/elastic
 
       - name: Install collection dependencies
+        working-directory: ansible_collections/${{ github.repository_owner }}/elastic
         run: ansible-galaxy collection install .
 
-
       - name: Run integration tests
+        working-directory: ansible_collections/${{ github.repository_owner }}/elastic
         run: |
           ansible-test integration --docker default --docker-network host --color --coverage
 
