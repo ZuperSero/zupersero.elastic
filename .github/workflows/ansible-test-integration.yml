@@ -52,10 +52,6 @@ jobs:
           echo "Kibana did not become ready after 15 attempts."
           exit 1
 
-      - uses: actions/checkout@v4
-        with:
-          path: checkout
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -66,15 +62,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install ansible-core==${{ matrix.ansible_core }} ansible-lint coverage
 
-      - name: Setup collection directory structure
-        run: |
-          mkdir -p ansible_collections/${{ github.repository_owner }}
-          cp -r checkout ansible_collections/${{ github.repository_owner }}/elastic
+      - uses: actions/checkout@v4
+        with:
+          path: ansible_collections/${{ github.repository_owner }}/elastic
 
       - name: Run integration tests
         working-directory: ansible_collections/${{ github.repository_owner }}/elastic
-        env:
-          PYTHONPATH: ${{ github.workspace }}
         run: |
           ansible-test integration --coverage
           ansible-test coverage report --include 'plugins/*'
