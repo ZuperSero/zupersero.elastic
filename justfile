@@ -21,6 +21,9 @@ integration:
     .venv/bin/ansible-test integration --coverage
     .venv/bin/ansible-test coverage report --include 'plugins/*'
 
+integration_act:
+    act push -W .github/workflows/ansible-test-integration.yml -P ubuntu-latest=ghcr.io/catthehacker/ubuntu:full-22.04 --container-options "--privileged --network host --user 0:0"
+
 elastic:
     wget https://elastic.co/start-local
     sed -i 's/check_disk_space_gb ${min_disk_space_required}/#check_disk_space_gb ${min_disk_space_required}/' start-local
@@ -31,3 +34,7 @@ elastic:
 elastic_teardown:
     elastic-start-local/uninstall.sh
     rm -rf elastic-start-local
+
+docker_cleanup:
+    docker stop $(docker ps -a -q) || true
+    docker rm $(docker ps -a -q) || true
