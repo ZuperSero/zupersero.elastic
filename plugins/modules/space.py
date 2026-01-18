@@ -267,11 +267,11 @@ diff:
       disabledFeatures: []
 '''
 
-from typing import Any
+from typing import Any  # noqa: E402
 
-from ansible_collections.zupersero.elastic.plugins.module_utils import kibana
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.common.dict_transformations import recursive_diff
+from ansible_collections.zupersero.elastic.plugins.module_utils import kibana  # noqa: E402
+from ansible.module_utils.basic import AnsibleModule  # noqa: E402
+from ansible.module_utils.common.dict_transformations import recursive_diff  # noqa: E402
 
 
 def normalize_feature_names(features: list[str]) -> list[str]:

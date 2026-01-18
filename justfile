@@ -2,7 +2,11 @@ init:
     uv venv --allow-existing --python 3.11
     source .venv/bin/activate
     uv pip install \
-        ansible-core==2.19.5
+        ansible-core==2.19.5 \
+        ansible-lint==26.1.1 \
+        ruff==0.14.13 \
+        antsibull-core==3.5.0
+
 
 activate:
     source .venv/bin/activate
@@ -13,6 +17,8 @@ install:
 molecule:
     molecule test --scenario-name elasticsearch
 
+ruff:
+    .venv/bin/ruff check .
 sanity:
     .venv/bin/ansible-test sanity --coverage
     .venv/bin/ansible-test coverage report --include 'plugins/*'
@@ -38,3 +44,10 @@ elastic_teardown:
 docker_cleanup:
     docker stop $(docker ps -a -q) || true
     docker rm $(docker ps -a -q) || true
+
+docs:
+    ansible-galaxy collection install . --force
+    mkdir -p .build/docs
+    antsibull-docs sphinx-init --use-current --dest-dir .build/docs zupersero.elastic
+    uv pip install -r .build/docs/requirements.txt
+    cd .build/docs && ./build.sh

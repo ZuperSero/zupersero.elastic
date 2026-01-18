@@ -8,7 +8,7 @@ version: 1.0.0
 readme: README.md
 
 authors:
-- zupersero
+  - zupersero
 
 description: |
   An ansible collection for working and interacting with software in the elastic ecosystem.
@@ -18,7 +18,7 @@ description: |
 
 
 license:
-- GNU General Public License v3.0
+  - GPL-3.0-or-later
 
 license_file: LICENSE
 
@@ -29,7 +29,9 @@ tags:
   - fleet
   - security
 
-dependencies: {}
+dependencies:
+  community.general: ">=12.2.0"
+  ansible.posix: ">=2.1.0"
 
 repository: https://github.com/ZuperSero/zupersero.elastic
 
