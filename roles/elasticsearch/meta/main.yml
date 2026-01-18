@@ -1,0 +1,100 @@
+---
+galaxy_info:
+  author: zupersero
+  description: Install and configure Elasticsearch
+
+  license: BSD
+
+  min_ansible_version: "2.14"
+
+  platforms:
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+
+  galaxy_tags:
+    - elasticsearch
+    - elastic
+    - elk
+    - search
+
+dependencies: []
+
+argument_specs:
+  main:
+    short_description: Install and configure Elasticsearch
+    description:
+      - This role installs and configures Elasticsearch
+      - Supports Debian and RedHat based systems
+    options:
+      elasticsearch_version:
+        description: Version of Elasticsearch to install
+        type: str
+        default: "9.2.1"
+      elasticsearch_bootstrap:
+        description: Enable bootstrap tasks
+        type: bool
+        default: false
+      elasticsearch_home:
+        description: Elasticsearch home directory
+        type: str
+        default: "/usr/share/elasticsearch"
+      elasticsearch_install_method:
+        description: Installation method (package or tar)
+        type: str
+        default: "package"
+        choices:
+          - package
+          - tar
+      elasticsearch_allow_downgrade:
+        description: Allow downgrading Elasticsearch
+        type: bool
+        default: false
+      elasticsearch_systemd_service_overrides:
+        description: Systemd service override content
+        type: str
+        default: ""
+      elasticsearch_vm_max_map_count:
+        description: Kernel vm.max_map_count setting
+        type: int
+        default: 262144
+      elasticsearch_user:
+        description: Elasticsearch system user
+        type: str
+        default: "elasticsearch"
+      elasticsearch_group:
+        description: Elasticsearch system group
+        type: str
+        default: "elasticsearch"
+      elasticsearch_config_content:
+        description: Elasticsearch configuration as YAML dict
+        type: dict
+      elasticsearch_jvm_heap_size:
+        description: JVM heap size
+        type: str
+        default: "8g"
+      elasticsearch_jvm_extra_options:
+        description: Additional JVM options
+        type: str
+        default: ""
+      elasticsearch_security_enable_default:
+        description: Enable default security configuration
+        type: bool
+        default: false
+      elasticsearch_secure_config:
+        description: Keystore settings dict
+        type: dict
+        default: {}
+      elasticsearch_bootstrap_password:
+        description: Bootstrap password for security setup
+        type: str
+        default: "changeme"

@@ -211,3 +211,5 @@ __marimo__/
 
 tests/output
 elastic-start-local
+start-local*
+.build

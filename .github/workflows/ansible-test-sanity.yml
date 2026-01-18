@@ -1,4 +1,4 @@
-name: Run ansible sanity tests
+name: Sanity Tests
 on:
     pull_request:
         branches: [main]
