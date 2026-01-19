@@ -1,0 +1,2 @@
+[testgroup]
+testhost ansible_connection='local' ansible_pipelining='yes' ansible_python_interpreter='/var/home/zz/ansible_collections/zupersero/elastic/.venv/bin/python3'

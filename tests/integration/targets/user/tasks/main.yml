@@ -1,0 +1,161 @@
+---
+- name: Test user module
+  module_defaults:
+    zupersero.elastic.user:
+      url: http://localhost:9200
+      auth_username: elastic
+      auth_password: changeme
+  block:
+    - name: Create user
+      zupersero.elastic.user:
+        state: present
+        username: test_integration_user
+        password: thisisalongtestpassword
+        roles:
+          - superuser
+        email: test_integration_user@example.com
+        full_name: Test Integration User
+        enabled: true
+      register: create_user_result
+
+    - name: Assert user was created
+      ansible.builtin.assert:
+        that:
+          - create_user_result is changed
+          - create_user_result.user.username == 'test_integration_user'
+          - create_user_result.user.email == 'test_integration_user@example.com'
+          - create_user_result.user.full_name == 'Test Integration User'
+          - create_user_result.user.enabled == true
+
+    - name: idempotentcy check
+      zupersero.elastic.user:
+        state: present
+        username: test_integration_user
+        password: thisisalongtestpassword
+        roles:
+          - superuser
+        email: test_integration_user@example.com
+        full_name: Test Integration User
+        enabled: true
+      register: create_user_result_idempotent
+
+    - name: Assert user was not changed
+      ansible.builtin.assert:
+        that:
+          - create_user_result_idempotent is not changed
+          - create_user_result_idempotent.user.username == 'test_integration_user'
+          - create_user_result_idempotent.user.email == 'test_integration_user@example.com'
+          - create_user_result_idempotent.user.full_name == 'Test Integration User'
+          - create_user_result_idempotent.user.enabled == true
+
+    - name: Just by username idempotency check
+      zupersero.elastic.user:
+        state: present
+        username: test_integration_user
+      register: create_user_result_username_only
+
+    - name: Assert user was not changed when only username is provided
+      ansible.builtin.assert:
+        that:
+          - create_user_result_username_only is not changed
+          - create_user_result_username_only.user.username == 'test_integration_user'
+          - create_user_result_username_only.user.email == 'test_integration_user@example.com'
+          - create_user_result_username_only.user.full_name == 'Test Integration User'
+          - create_user_result_username_only.user.enabled == true
+
+    - name: Login with user
+      ansible.builtin.uri:
+        url: http://localhost:9200
+        method: GET
+        user: test_integration_user
+        password: thisisalongtestpassword
+        status_code: 200
+      register: login_result
+
+    - name: Assert login was successful
+      ansible.builtin.assert:
+        that:
+          - login_result.status == 200
+          - login_result.json.tagline == 'You Know, for Search'
+
+    - name: Disable user
+      zupersero.elastic.user:
+        state: present
+        username: test_integration_user
+        enabled: false
+      register: disable_user_result
+
+    - name: Assert user was disabled
+      ansible.builtin.assert:
+        that:
+          - disable_user_result is changed
+          - disable_user_result.user.username == 'test_integration_user'
+          - disable_user_result.user.enabled == false
+
+    - name: Delete user
+      zupersero.elastic.user:
+        state: absent
+        username: test_integration_user
+      register: delete_user_result
+
+    - name: Assert user was deleted
+      ansible.builtin.assert:
+        that:
+          - delete_user_result is changed
+          - delete_user_result.user.username == 'test_integration_user'
+          - delete_user_result.user.email == 'test_integration_user@example.com'
+          - delete_user_result.user.full_name == 'Test Integration User'
+          - delete_user_result.user.enabled == true
+
+    - name: Delete user again (should not change)
+      zupersero.elastic.user:
+        state: absent
+        username: test_integration_user
+      register: delete_user_result_again
+
+    - name: Assert user deletion was idempotent
+      ansible.builtin.assert:
+        that:
+          - delete_user_result_again is not changed
+
+    - name: Create user with password hash
+      zupersero.elastic.user:
+        state: present
+        username: test_integration_user
+        # Uses bcrypt algorithm with salt generated in 1024 rounds.
+        password_hash: "{{ 'vagrant-libvirt' | password_hash(hashtype='bcrypt') }}"
+        roles:
+          - superuser
+        email: test_integration_user@example.com
+        full_name: Test Integration User
+        enabled: true
+      register: create_user_with_hash_result
+
+    - name: Assert user with password hash was created
+      ansible.builtin.assert:
+        that:
+          - create_user_with_hash_result is changed
+          - create_user_with_hash_result.user.username == 'test_integration_user'
+          - create_user_with_hash_result.user.email == 'test_integration_user@example.com'
+          - create_user_with_hash_result.user.full_name == 'Test Integration User'
+          - create_user_with_hash_result.user.enabled == true
+
+    - name: Delete user created with password hash
+      zupersero.elastic.user:
+        state: absent
+        username: test_integration_user
+      register: delete_user_with_hash_result
+
+    - name: Assert user created with password hash was deleted
+      ansible.builtin.assert:
+        that:
+          - delete_user_with_hash_result is changed
+
+  always:
+    - name: Cleanup tests
+      zupersero.elastic.user:
+        state: absent
+        username: "{{ item }}"
+      ignore_errors: true
+      loop:
+        - test_integration_user

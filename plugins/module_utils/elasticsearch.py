@@ -11,17 +11,18 @@ from ansible.module_utils.basic import env_fallback
 from ansible.module_utils.urls import url_argument_spec, fetch_url, basic_auth_header
 from ansible.module_utils.api import retry_argument_spec, retry_with_delays_and_condition, generate_jittered_backoff
 
+
 if TYPE_CHECKING:
-    from .kibana_services import (
-        SpaceService
+    from .elasticsearch_services import (
+        UserService
     )
 else:
-    from ansible_collections.zupersero.elastic.plugins.module_utils.kibana_services import (
-        SpaceService,
+    from ansible_collections.zupersero.elastic.plugins.module_utils.elasticsearch_services import (
+        UserService
     )
 
 
-class KibanaRetryableError(Exception):
+class ElasticsearchRetryableError(Exception):
     """Exception raised for errors that should trigger a retry."""
 
     def __init__(self, message: str, status_code: int | None = None) -> None:
@@ -36,9 +37,9 @@ class KibanaRetryableError(Exception):
         self.status_code = status_code
 
 
-def kibana_argument_spec() -> dict[str, dict[str, Any]]:
+def elasticsearch_argument_spec() -> dict[str, dict[str, Any]]:
     """
-    Build the argument specification for Kibana modules.
+    Build the argument specification for Elasticsearch modules.
 
     Returns:
         dict[str, dict[str, Any]]: Ansible argument specification dictionary
@@ -56,27 +57,26 @@ def kibana_argument_spec() -> dict[str, dict[str, Any]]:
     # Add Ansible native retry argument spec
     retry_spec = retry_argument_spec()
 
-    # Update retries default from 10 to 3 for Kibana
+    # Update retries default from 10 to 3 for Elasticsearch
     retry_spec['retries']['default'] = 3
 
-    # Update with kibana specific parameters used in every module
+    # Update with Elasticsearch specific parameters used in every module
     argument_spec.update(retry_spec)
     argument_spec.update(
         state=dict(type='str', choices=['present', 'absent'], default='present'),
-        url=dict(type='str', required=False, fallback=(env_fallback, ['KIBANA_URL'])),
-        username=dict(type='str', required=False, fallback=(env_fallback, ['KIBANA_USERNAME'])),
-        password=dict(type='str', required=False, no_log=True, fallback=(env_fallback, ['KIBANA_PASSWORD'])),
-        api_key=dict(type='str', required=False, no_log=True, fallback=(env_fallback, ['KIBANA_API_KEY'])),
-        space=dict(type='str', required=False, default='default', fallback=(env_fallback, ['KIBANA_SPACE'])),
-        validate_certs=dict(type='bool', default=True, fallback=(env_fallback, ['KIBANA_VALIDATE_CERTS'])),
+        url=dict(type='str', required=False, fallback=(env_fallback, ['ELASTICSEARCH_URL'])),
+        username=dict(type='str', required=False, fallback=(env_fallback, ['ELASTICSEARCH_USERNAME'])),
+        password=dict(type='str', required=False, no_log=True, fallback=(env_fallback, ['ELASTICSEARCH_PASSWORD'])),
+        api_key=dict(type='str', required=False, no_log=True, fallback=(env_fallback, ['ELASTICSEARCH_API_KEY'])),
+        validate_certs=dict(type='bool', default=True, fallback=(env_fallback, ['ELASTICSEARCH_VALIDATE_CERTS'])),
         timeout=dict(type='int', default=30),
     )
     return argument_spec
 
 
-def kibana_required_together() -> list[list[str]]:
+def elasticsearch_required_together() -> list[list[str]]:
     """
-    Define required_together constraints for Kibana modules.
+    Define required_together constraints for Elasticsearch modules.
 
     Returns:
         list[list[str]]: Empty list as there are no required_together constraints
@@ -84,9 +84,9 @@ def kibana_required_together() -> list[list[str]]:
     return []
 
 
-def kibana_required_if() -> list[list[str]]:
+def elasticsearch_required_if() -> list[list[str]]:
     """
-    Define required_if constraints for Kibana modules.
+    Define required_if constraints for Elasticsearch modules.
 
     Returns:
         list[list[str]]: Empty list as there are no required_if constraints
@@ -94,9 +94,9 @@ def kibana_required_if() -> list[list[str]]:
     return []
 
 
-def kibana_mutually_exclusive() -> list[list[str]]:
+def elasticsearch_mutually_exclusive() -> list[list[str]]:
     """
-    Define mutually_exclusive constraints for Kibana modules.
+    Define mutually_exclusive constraints for Elasticsearch modules.
 
     Returns:
         list[list[str]]: Empty list as there are no mutually_exclusive constraints
@@ -104,16 +104,16 @@ def kibana_mutually_exclusive() -> list[list[str]]:
     return []
 
 
-class KibanaClient:
+class ElasticsearchClient:
     """
-    Client for interacting with Kibana API.
+    Client for interacting with Elasticsearch API.
 
-    This client handles authentication, retries, and provides access to Kibana services.
+    This client handles authentication, retries, and provides helper request methods.
     """
 
     def __init__(self, module: Any) -> None:
         """
-        Initialize the Kibana client.
+        Initialize the Elasticsearch client.
 
         Args:
             module (AnsibleModule): The Ansible module instance
@@ -125,17 +125,15 @@ class KibanaClient:
         self.api_key = module.params.get("api_key")
         self.validate_certs = module.params.get("validate_certs")
         self.timeout = module.params.get("timeout")
-        # Convert to int to ensure compatibility with generate_jittered_backoff
         self.retries = int(module.params.get("retries"))
         self.retry_pause = int(module.params.get("retry_pause"))
-        self.space_id = module.params.get("space")
 
-        # Validate that we have either username/password or api_key
+        # Validate authentication and URL
         if not self.api_key and not (self.username and self.password):
             module.fail_json(msg="Either api_key or username and password must be provided")
 
         if not self.url:
-            module.fail_json(msg="Kibana URL is required")
+            module.fail_json(msg="Elasticsearch URL is required")
 
         # Create retry decorator with jittered exponential backoff
         backoff_iterator = generate_jittered_backoff(
@@ -145,18 +143,19 @@ class KibanaClient:
         )
         self._retry_decorator = retry_with_delays_and_condition(
             backoff_iterator=backoff_iterator,
-            should_retry_error=lambda e: isinstance(e, KibanaRetryableError)
+            should_retry_error=lambda e: isinstance(e, ElasticsearchRetryableError)
         )
 
         # Services
-        self.spaces = SpaceService(self)
+        self.user = UserService(self)
+
 
     def _send_request_impl(self, path: str, method: str = 'GET', data: dict | None = None, extra_headers: dict | None = None) -> tuple[int, dict | None]:
         """
-        Internal implementation of sending HTTP request to Kibana API.
+        Internal implementation of sending HTTP request to Elasticsearch API.
 
         Args:
-            path (str): API path (relative to Kibana base URL)
+            path (str): API path (relative to Elasticsearch base URL)
             method (str, optional): HTTP method. Defaults to 'GET'
             data (dict | None, optional): Request body data. Defaults to None
             extra_headers (dict | None, optional): Additional HTTP headers. Defaults to None
@@ -165,28 +164,23 @@ class KibanaClient:
             tuple[int, dict | None]: Tuple containing (status_code, response_data)
 
         Raises:
-            KibanaRetryableError: For server errors (5xx) or connection failures that should be retried
+            ElasticsearchRetryableError: For server errors (5xx) or connection failures that should be retried
         """
         if extra_headers is None:
             extra_headers = {}
 
-        # Build full URL
         url = f"{self.url.rstrip('/')}/{path.lstrip('/')}"
 
-        # Build headers
         headers = {
             'Content-Type': 'application/json',
-            'kbn-xsrf': 'true',
             **extra_headers
         }
 
-        # Add authentication
         if self.api_key:
             headers['Authorization'] = f'ApiKey {self.api_key}'
         elif self.username and self.password:
             headers['Authorization'] = basic_auth_header(self.username, self.password)
 
-        # Prepare data
         body = json.dumps(data) if data else None
 
         try:
@@ -201,52 +195,43 @@ class KibanaClient:
 
             status_code = info['status']
 
-            # Try to parse response body
             response_data = None
             if resp:
                 response_body = resp.read()
                 if response_body:
-                    # Try to parse as JSON first
                     try:
                         response_data = json.loads(response_body)
                     except (ValueError, json.JSONDecodeError):
-                        # If not JSON, keep as string (decode if bytes)
                         if isinstance(response_body, bytes):
                             response_data = response_body.decode('utf-8', errors='replace')
                         else:
                             response_data = response_body
 
-            # If successful, return
             if 200 <= status_code < 300:
                 return status_code, response_data
-            # Client errors shouldn't be retried
             elif 400 <= status_code < 500:
-                # Extract error message from response
                 if isinstance(response_data, dict):
-                    error_msg = response_data.get('message', info.get('msg', 'Unknown error'))
+                    error_msg = response_data.get('error') or response_data.get('message') or info.get('msg', 'Unknown error')
                 elif response_data:
                     error_msg = str(response_data)
                 else:
                     error_msg = info.get('msg', 'Unknown error')
                 return status_code, {'error': error_msg, 'status': status_code}
-            # Server errors should be retried
             else:
                 error_msg = f"HTTP {status_code}: {info.get('msg', 'Server error')}"
-                raise KibanaRetryableError(error_msg, status_code)
+                raise ElasticsearchRetryableError(error_msg, status_code)
 
-        except KibanaRetryableError:
-            # Re-raise retryable errors
+        except ElasticsearchRetryableError:
             raise
         except Exception as e:
-            # Connection errors and other exceptions should be retried
-            raise KibanaRetryableError(f"Connection error: {str(e)}")
+            raise ElasticsearchRetryableError(f"Connection error: {str(e)}")
 
     def _send_request(self, path: str, method: str = 'GET', data: dict | None = None, extra_headers: dict | None = None) -> tuple[int, dict | None]:
         """
-        Send an HTTP request to Kibana API with retry logic.
+        Send an HTTP request to Elasticsearch API with retry logic.
 
         Args:
-            path (str): API path (relative to Kibana base URL)
+            path (str): API path (relative to Elasticsearch base URL)
             method (str, optional): HTTP method. Defaults to 'GET'
             data (dict | None, optional): Request body data. Defaults to None
             extra_headers (dict | None, optional): Additional HTTP headers. Defaults to None
@@ -254,20 +239,18 @@ class KibanaClient:
         Returns:
             tuple[int, dict | None]: Tuple containing (status_code, response_data)
         """
-        # Apply retry decorator to the implementation
         retrying_func = self._retry_decorator(self._send_request_impl)
         try:
             return retrying_func(path, method, data, extra_headers)
-        except KibanaRetryableError as e:
-            # All retries exhausted
-            self.module.fail_json(msg=f"Failed to connect to Kibana after {self.retries} attempts: {str(e)}")
+        except ElasticsearchRetryableError as e:
+            self.module.fail_json(msg=f"Failed to connect to Elasticsearch after {self.retries} attempts: {str(e)}")
 
     def get(self, path: str, headers: dict | None = None) -> tuple[int, dict | None]:
         """
-        Send a GET request to Kibana API.
+        Send a GET request to Elasticsearch API.
 
         Args:
-            path (str): API path (relative to Kibana base URL)
+            path (str): API path (relative to Elasticsearch base URL)
             headers (dict | None, optional): Additional HTTP headers. Defaults to None
 
         Returns:
@@ -277,10 +260,10 @@ class KibanaClient:
 
     def post(self, path: str, data: dict | None = None, headers: dict | None = None) -> tuple[int, dict | None]:
         """
-        Send a POST request to Kibana API.
+        Send a POST request to Elasticsearch API.
 
         Args:
-            path (str): API path (relative to Kibana base URL)
+            path (str): API path (relative to Elasticsearch base URL)
             data (dict | None, optional): Request body data. Defaults to None
             headers (dict | None, optional): Additional HTTP headers. Defaults to None
 
@@ -291,10 +274,10 @@ class KibanaClient:
 
     def put(self, path: str, data: dict | None = None, headers: dict | None = None) -> tuple[int, dict | None]:
         """
-        Send a PUT request to Kibana API.
+        Send a PUT request to Elasticsearch API.
 
         Args:
-            path (str): API path (relative to Kibana base URL)
+            path (str): API path (relative to Elasticsearch base URL)
             data (dict | None, optional): Request body data. Defaults to None
             headers (dict | None, optional): Additional HTTP headers. Defaults to None
 
@@ -305,10 +288,10 @@ class KibanaClient:
 
     def delete(self, path: str, headers: dict | None = None) -> tuple[int, dict | None]:
         """
-        Send a DELETE request to Kibana API.
+        Send a DELETE request to Elasticsearch API.
 
         Args:
-            path (str): API path (relative to Kibana base URL)
+            path (str): API path (relative to Elasticsearch base URL)
             headers (dict | None, optional): Additional HTTP headers. Defaults to None
 
         Returns:
