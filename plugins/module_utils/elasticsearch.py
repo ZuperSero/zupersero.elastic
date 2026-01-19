@@ -149,7 +149,6 @@ class ElasticsearchClient:
         # Services
         self.user = UserService(self)
 
-
     def _send_request_impl(self, path: str, method: str = 'GET', data: dict | None = None, extra_headers: dict | None = None) -> tuple[int, dict | None]:
         """
         Internal implementation of sending HTTP request to Elasticsearch API.
