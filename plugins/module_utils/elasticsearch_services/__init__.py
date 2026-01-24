@@ -2,6 +2,7 @@
 # GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from .role import RoleService
 from .user import UserService
 
-__all__ = ["UserService"]
+__all__ = ["UserService", "RoleService"]

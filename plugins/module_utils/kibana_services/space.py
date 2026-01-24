@@ -6,8 +6,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from ..kibana import KibanaClient
+else:
     from ansible_collections.zupersero.elastic.plugins.module_utils.kibana import KibanaClient
-
 
 class SpaceService:
     """

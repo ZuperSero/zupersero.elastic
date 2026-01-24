@@ -3,5 +3,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 from .space import SpaceService
+from .role import RoleService
+from .dataview import DataViewService
+from .connector import ConnectorService
+from .agent_policy import AgentPolicyService
+from .agent import AgentService
+from .epm import EPMService
 
-__all__ = ["SpaceService"]
+
+__all__ = ["SpaceService", "RoleService", "DataViewService", "ConnectorService", "AgentPolicyService", "AgentService", "EPMService"]

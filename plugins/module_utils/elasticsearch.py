@@ -14,10 +14,12 @@ from ansible.module_utils.api import retry_argument_spec, retry_with_delays_and_
 
 if TYPE_CHECKING:
     from .elasticsearch_services import (
+        RoleService,
         UserService
     )
 else:
     from ansible_collections.zupersero.elastic.plugins.module_utils.elasticsearch_services import (
+        RoleService,
         UserService
     )
 
@@ -147,6 +149,7 @@ class ElasticsearchClient:
         )
 
         # Services
+        self.role = RoleService(self)
         self.user = UserService(self)
 
     def _send_request_impl(self, path: str, method: str = 'GET', data: dict | None = None, extra_headers: dict | None = None) -> tuple[int, dict | None]:

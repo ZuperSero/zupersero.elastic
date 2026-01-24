@@ -13,7 +13,13 @@ from ansible.module_utils.api import retry_argument_spec, retry_with_delays_and_
 
 if TYPE_CHECKING:
     from .kibana_services import (
-        SpaceService
+        SpaceService,
+        DataViewService,
+        AgentService,
+        AgentPolicyService,
+        EPMService,
+        ConnectorService,
+        RoleService,
     )
 else:
     from ansible_collections.zupersero.elastic.plugins.module_utils.kibana_services import (
@@ -150,6 +156,12 @@ class KibanaClient:
 
         # Services
         self.spaces = SpaceService(self)
+        self.epm = EPMService(self)
+        self.agent_policies = AgentPolicyService(self)
+        self.agents = AgentService(self)
+        self.data_views = DataViewService(self)
+        self.connectors = ConnectorService(self)
+        self.roles = RoleService(self)
 
     def _send_request_impl(self, path: str, method: str = 'GET', data: dict | None = None, extra_headers: dict | None = None) -> tuple[int, dict | None]:
         """
@@ -302,6 +314,20 @@ class KibanaClient:
             tuple[int, dict | None]: Tuple containing (status_code, response_data)
         """
         return self._send_request(path, method='PUT', data=data, extra_headers=headers)
+
+    def patch(self, path: str, data: dict | None = None, headers: dict | None = None) -> tuple[int, dict | None]:
+        """
+        Send a PATCH request to Kibana API.
+
+        Args:
+            path (str): API path (relative to Kibana base URL)
+            data (dict | None, optional): Request body data. Defaults to None
+            headers (dict | None, optional): Additional HTTP headers. Defaults to None
+
+        Returns:
+            tuple[int, dict | None]: Tuple containing (status_code, response_data)
+        """
+        return self._send_request(path, method='PATCH', data=data, extra_headers=headers)
 
     def delete(self, path: str, headers: dict | None = None) -> tuple[int, dict | None]:
         """
