@@ -5,7 +5,8 @@ init:
         ansible-core==2.19.5 \
         ansible-lint==26.1.1 \
         ruff==0.14.13 \
-        antsibull-core==3.5.0
+        antsibull-core==3.5.0 \
+        passlib==1.7.4
 
 
 activate:

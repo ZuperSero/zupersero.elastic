@@ -3,98 +3,76 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ..kibana import KibanaClient
-else:
-    from ansible_collections.zupersero.elastic.plugins.module_utils.kibana import KibanaClient
+    from .. import kibana
+
 
 class ConnectorService:
     """
-    Service for managing Kibana Connectors.
-
-    This service provides methods for CRUD operations on Kibana Connectors.
+    Service for interacting with Kibana Connectors API.
     """
 
-    def __init__(self, client: KibanaClient) -> None:
+    def __init__(self, client: "kibana.KibanaClient") -> None:
         """
-        Initialize the Connector service.
+        Initialize the ConnectorService.
 
         Args:
-            client (KibanaClient): The Kibana client instance
+            client (kibana.KibanaClient): The Kibana client.
         """
         self.client = client
+        self.base_path = "/api/actions"
 
-    def get(self, connector_id: str) -> tuple[int, dict | None]:
+    def get(self, connector_id: str) -> tuple[int, dict[str, Any] | None]:
         """
         Get a connector by ID.
 
         Args:
-            connector_id (str): The connector ID to retrieve
+            connector_id (str): The ID of the connector to get.
 
         Returns:
-            tuple[int, dict | None]: Tuple containing (status_code, connector_data)
-                - status_code: HTTP status code (200 if found, 404 if not found)
-                - connector_data: Connector object if found, error dict if not found
+            tuple[int, dict[str, Any] | None]: A tuple containing the status code and the connector data.
         """
-        path = f"api/actions/connector/{connector_id}"
+        path = f"{self.base_path}/connector/{connector_id}"
         return self.client.get(path)
 
-    def list(self) -> tuple[int, dict | None]:
-        """
-        Get all connectors.
-
-        Returns:
-            tuple[int, dict | None]: Tuple containing (status_code, connectors_data)
-                - status_code: HTTP status code (200 if successful)
-                - connectors_data: List of connector objects
-        """
-        path = "api/actions/connectors"
-        return self.client.get(path)
-
-    def create(self, connector_data: dict) -> tuple[int, dict | None]:
+    def create(self, connector_data: dict[str, Any]) -> tuple[int, dict[str, Any] | None]:
         """
         Create a new connector.
 
         Args:
-            connector_data (dict): Connector configuration including name, connector_type_id, config, secrets
+            connector_data (dict[str, Any]): The data for the new connector.
 
         Returns:
-            tuple[int, dict | None]: Tuple containing (status_code, created_connector_data)
-                - status_code: HTTP status code (200/201 if successful, 409 if already exists)
-                - created_connector_data: Created connector object or error dict
+            tuple[int, dict[str, Any] | None]: A tuple containing the status code and the created connector data.
         """
-        path = "api/actions/connector"
+        path = f"{self.base_path}/connector"
         return self.client.post(path, data=connector_data)
 
-    def update(self, connector_id: str, connector_data: dict) -> tuple[int, dict | None]:
+    def update(self, connector_id: str, connector_data: dict[str, Any]) -> tuple[int, dict[str, Any] | None]:
         """
         Update an existing connector.
 
         Args:
-            connector_id (str): The connector ID to update
-            connector_data (dict): Updated connector configuration
+            connector_id (str): The ID of the connector to update.
+            connector_data (dict[str, Any]): The updated connector data.
 
         Returns:
-            tuple[int, dict | None]: Tuple containing (status_code, updated_connector_data)
-                - status_code: HTTP status code (200 if successful, 404 if not found)
-                - updated_connector_data: Updated connector object or error dict
+            tuple[int, dict[str, Any] | None]: A tuple containing the status code and the updated connector data.
         """
-        path = f"api/actions/connector/{connector_id}"
+        path = f"{self.base_path}/connector/{connector_id}"
         return self.client.put(path, data=connector_data)
 
-    def delete(self, connector_id: str) -> tuple[int, dict | None]:
+    def delete(self, connector_id: str) -> tuple[int, dict[str, Any] | None]:
         """
-        Delete a connector.
+        Delete a connector by ID.
 
         Args:
-            connector_id (str): The connector ID to delete
+            connector_id (str): The ID of the connector to delete.
 
         Returns:
-            tuple[int, dict | None]: Tuple containing (status_code, response_data)
-                - status_code: HTTP status code (200/204 if successful, 404 if not found)
-                - response_data: Empty or error dict
+            tuple[int, dict[str, Any] | None]: A tuple containing the status code and the response data.
         """
-        path = f"api/actions/connector/{connector_id}"
+        path = f"{self.base_path}/connector/{connector_id}"
         return self.client.delete(path)

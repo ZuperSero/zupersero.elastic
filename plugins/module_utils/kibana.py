@@ -5,26 +5,11 @@
 from __future__ import annotations
 from typing import Any
 import json
-from typing import TYPE_CHECKING
 
 from ansible.module_utils.basic import env_fallback
 from ansible.module_utils.urls import url_argument_spec, fetch_url, basic_auth_header
 from ansible.module_utils.api import retry_argument_spec, retry_with_delays_and_condition, generate_jittered_backoff
 
-if TYPE_CHECKING:
-    from .kibana_services import (
-        SpaceService,
-        DataViewService,
-        AgentService,
-        AgentPolicyService,
-        EPMService,
-        ConnectorService,
-        RoleService,
-    )
-else:
-    from ansible_collections.zupersero.elastic.plugins.module_utils.kibana_services import (
-        SpaceService,
-    )
 
 
 class KibanaRetryableError(Exception):
@@ -124,6 +109,15 @@ class KibanaClient:
         Args:
             module (AnsibleModule): The Ansible module instance
         """
+        from ansible_collections.zupersero.elastic.plugins.module_utils.kibana_services import (
+            SpaceService,
+            DataViewService,
+            AgentService,
+            AgentPolicyService,
+            EPMService,
+            ConnectorService,
+            RoleService,
+        )
         self.module = module
         self.url = module.params.get("url")
         self.username = module.params.get("username")

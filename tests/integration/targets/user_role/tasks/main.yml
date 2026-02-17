@@ -1,0 +1,243 @@
+---
+- name: Test user_role module
+  module_defaults:
+    zupersero.elastic.user_role:
+      url: http://localhost:9200
+      username: elastic
+      password: changeme
+
+  block:
+    - name: Create role in check mode
+      zupersero.elastic.user_role:
+        state: present
+        name: test_integration_role
+        cluster:
+          - monitor
+        indices:
+          - names:
+              - logs-*
+            privileges:
+              - read
+            allow_restricted_indices: false
+        run_as:
+          - elastic
+        metadata:
+          owner: qa
+        transient_metadata:
+          enabled: true
+      check_mode: true
+      register: create_check
+
+    - name: Assert check mode create shows changed
+      ansible.builtin.assert:
+        that:
+          - create_check is changed
+          - create_check.role.name == 'test_integration_role'
+          - create_check.role.cluster == ['monitor']
+          - create_check.role.run_as == ['elastic']
+
+    - name: Create role
+      zupersero.elastic.user_role:
+        state: present
+        name: test_integration_role
+        cluster:
+          - monitor
+        indices:
+          - names:
+              - logs-*
+            privileges:
+              - read
+            allow_restricted_indices: false
+        run_as:
+          - elastic
+        metadata:
+          owner: qa
+        transient_metadata:
+          enabled: true
+      register: create_role
+
+    - name: Assert role was created
+      ansible.builtin.assert:
+        that:
+          - create_role is changed
+          - create_role.role.name == 'test_integration_role'
+          - "'monitor' in create_role.role.cluster"
+          - create_role.role.run_as == ['elastic']
+          - create_role.role.indices | length == 1
+          - create_role.role.metadata.owner == 'qa'
+
+    - name: Create role again (should not change)
+      zupersero.elastic.user_role:
+        state: present
+        name: test_integration_role
+        cluster:
+          - monitor
+        indices:
+          - names:
+              - logs-*
+            privileges:
+              - read
+            allow_restricted_indices: false
+        run_as:
+          - elastic
+        metadata:
+          owner: qa
+        transient_metadata:
+          enabled: true
+      register: create_again
+
+    - name: Assert role was not changed
+      ansible.builtin.assert:
+        that:
+          - create_again is not changed
+          - create_again.role.name == 'test_integration_role'
+
+    - name: Update role in check mode
+      zupersero.elastic.user_role:
+        state: present
+        name: test_integration_role
+        cluster:
+          - monitor
+          - manage_own_api_key
+        indices:
+          - names:
+              - logs-*
+              - metrics-*
+            privileges:
+              - read
+              - view_index_metadata
+            allow_restricted_indices: true
+        applications:
+          - application: kibana-.kibana
+            privileges:
+              - read
+            resources:
+              - '*'
+        run_as:
+          - elastic
+        metadata:
+          owner: platform
+        transient_metadata:
+          enabled: true
+      check_mode: true
+      register: update_check
+
+    - name: Assert check mode update shows changed
+      ansible.builtin.assert:
+        that:
+          - update_check is changed
+
+    - name: Update role
+      zupersero.elastic.user_role:
+        state: present
+        name: test_integration_role
+        cluster:
+          - monitor
+          - manage_own_api_key
+        indices:
+          - names:
+              - logs-*
+              - metrics-*
+            privileges:
+              - read
+              - view_index_metadata
+            allow_restricted_indices: true
+        applications:
+          - application: kibana-.kibana
+            privileges:
+              - read
+            resources:
+              - '*'
+        run_as:
+          - elastic
+        metadata:
+          owner: platform
+        transient_metadata:
+          enabled: true
+      register: update_role
+
+    - name: Assert role was updated
+      ansible.builtin.assert:
+        that:
+          - update_role is changed
+          - "'manage_own_api_key' in update_role.role.cluster"
+          - update_role.role.run_as | length == 1
+          - update_role.role.indices[0].allow_restricted_indices == true
+          - update_role.role.metadata.owner == 'platform'
+          - update_role.role.applications | length == 1
+
+    - name: Update role again (should not change)
+      zupersero.elastic.user_role:
+        state: present
+        name: test_integration_role
+        cluster:
+          - monitor
+          - manage_own_api_key
+        indices:
+          - names:
+              - logs-*
+              - metrics-*
+            privileges:
+              - read
+              - view_index_metadata
+            allow_restricted_indices: true
+        applications:
+          - application: kibana-.kibana
+            privileges:
+              - read
+            resources:
+              - '*'
+        run_as:
+          - elastic
+        metadata:
+          owner: platform
+        transient_metadata:
+          enabled: true
+      register: update_again
+
+    - name: Assert role was not changed
+      ansible.builtin.assert:
+        that:
+          - update_again is not changed
+
+    - name: Delete role in check mode
+      zupersero.elastic.user_role:
+        state: absent
+        name: test_integration_role
+      check_mode: true
+      register: delete_check
+
+    - name: Assert check mode delete shows changed
+      ansible.builtin.assert:
+        that:
+          - delete_check is changed
+          - delete_check.role.name == 'test_integration_role'
+
+    - name: Delete role
+      zupersero.elastic.user_role:
+        state: absent
+        name: test_integration_role
+      register: delete_role
+
+    - name: Assert role was deleted
+      ansible.builtin.assert:
+        that:
+          - delete_role is changed
+
+    - name: Delete role again (should not change)
+      zupersero.elastic.user_role:
+        state: absent
+        name: test_integration_role
+      register: delete_again
+
+    - name: Assert role deletion was idempotent
+      ansible.builtin.assert:
+        that:
+          - delete_again is not changed
+
+  always:
+    - name: Cleanup tests
+      zupersero.elastic.user_role:
+        state: absent
+        name: test_integration_role
+      failed_when: false

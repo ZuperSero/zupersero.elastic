@@ -1,0 +1,136 @@
+# Copyright (c) 2025, zupersero
+# GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+- name: Test data_view module
+  module_defaults:
+    zupersero.elastic.data_view:
+      url: http://localhost:5601
+      username: elastic
+      password: changeme
+
+  block:
+    - name: Create data view in check mode
+      zupersero.elastic.data_view:
+        id: test-integration-data-view
+        name: Test Integration Data View
+        title: "logs-*"
+        time_field: '@timestamp'
+        state: present
+      register: create_check
+      check_mode: true
+
+    - name: Assert check mode create shows changed
+      ansible.builtin.assert:
+        that:
+          - create_check is changed
+          - create_check.data_view.id == 'test-integration-data-view'
+          - create_check.data_view.name == 'Test Integration Data View'
+          - create_check.data_view.title == 'logs-*'
+
+    - name: Create data view
+      zupersero.elastic.data_view:
+        id: test-integration-data-view
+        name: Test Integration Data View
+        title: logs-*
+        time_field: '@timestamp'
+        state: present
+      register: create_result
+
+    - name: Assert data view was created
+      ansible.builtin.assert:
+        that:
+          - create_result is changed
+          - create_result.data_view.id == 'test-integration-data-view'
+          - create_result.data_view.name == 'Test Integration Data View'
+          - create_result.data_view.title == 'logs-*'
+          - create_result.data_view.timeFieldName == '@timestamp'
+
+    - name: Create data view again (should not change)
+      zupersero.elastic.data_view:
+        id: test-integration-data-view
+        name: Test Integration Data View
+        title: logs-*
+        time_field: '@timestamp'
+        state: present
+      register: create_again
+
+    - name: Assert data view was not changed
+      ansible.builtin.assert:
+        that:
+          - create_again is not changed
+
+    - name: Update data view title
+      zupersero.elastic.data_view:
+        id: test-integration-data-view
+        name: Test Integration Data View
+        title: "metrics-*"
+        time_field: '@timestamp'
+        state: present
+      register: update_result
+
+    - name: Assert data view was updated
+      ansible.builtin.assert:
+        that:
+          - update_result is changed
+          - update_result.data_view.id == 'test-integration-data-view'
+          - update_result.data_view.timeFieldName == '@timestamp'
+          - update_result.data_view.title == 'metrics-*'
+
+    - name: Delete data view
+      zupersero.elastic.data_view:
+        id: test-integration-data-view
+        state: absent
+      register: delete_result
+
+    - name: Assert data view was deleted
+      ansible.builtin.assert:
+        that:
+          - delete_result is changed
+          - delete_result.data_view.id == 'test-integration-data-view'
+
+    - name: Make dataview using alias
+      zupersero.elastic.data_view:
+        id: test-integration-data-view
+        name: Test Integration Data View
+        index_pattern: alias-*
+        time_field: '@timestamp'
+        state: present
+      register: alias_create_result
+
+    - name: Assert data view using alias was created
+      ansible.builtin.assert:
+        that:
+          - alias_create_result is changed
+          - alias_create_result.data_view.id == 'test-integration-data-view'
+          - alias_create_result.data_view.indexPattern == 'alias-*'
+
+
+    - name: Update using alias
+      zupersero.elastic.data_view:
+        id: test-integration-data-view
+        name: Test Integration Data View Updated
+        index_pattern: alias-updated-*
+        time_field: '@timestamp'
+        state: present
+      register: alias_update_result
+
+    - name: Assert data view using alias was updated
+      ansible.builtin.assert:
+        that:
+          - alias_update_result is changed
+          - alias_update_result.data_view.id == 'test-integration-data-view'
+          - alias_update_result.data_view.name == 'Test Integration Data View Updated'
+          - alias_update_result.data_view.indexPattern == 'alias-updated-*'
+
+  always:
+    - name: Cleanup data views
+      zupersero.elastic.data_view:
+        id: "{{ _data_view }}"
+        state: absent
+      loop_control:
+        label: "{{ _data_view }}"
+        loop_var: _data_view
+      loop:
+        - test-integration-data-view
