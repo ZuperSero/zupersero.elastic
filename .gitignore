@@ -213,3 +213,4 @@ tests/output
 elastic-start-local
 start-local*
 .build
+AGENTS.md

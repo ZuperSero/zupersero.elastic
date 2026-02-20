@@ -30,7 +30,7 @@ options:
     type: str
   password_hash:
     description:
-      - Pre-hashed password for the user (for example bcrypt).
+      - Pre-hashed password for the user (bcrypt by default in Elasticsearch).
       - Mutually exclusive with I(password).
       - Applied on creation, or always when I(update_password=always).
     required: false
@@ -170,7 +170,8 @@ EXAMPLES = r'''
     auth_username: elastic
     auth_password: changeme
     username: hash_user
-    password_hash: "{{ 'changeme' | password_hash(hashtype='bcrypt') }}"
+    # Precomputed bcrypt hash for "password"
+    password_hash: "$2b$12$GhvMmNVjRW29ulnudl.LbuAnUtN/LRfe1JsBm1Xu6LE3059z5Tr8m"
     roles:
       - power_user
     update_password: on_create

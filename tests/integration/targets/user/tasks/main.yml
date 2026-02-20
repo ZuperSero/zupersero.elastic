@@ -122,8 +122,8 @@
       zupersero.elastic.user:
         state: present
         username: test_integration_user
-        # Uses bcrypt algorithm with salt generated in 1024 rounds.
-        password_hash: "{{ 'vagrant-libvirt' | password_hash(hashtype='bcrypt') }}"
+        # Precomputed bcrypt hash for password "password" to avoid external deps.
+        password_hash: "$2b$12$GhvMmNVjRW29ulnudl.LbuAnUtN/LRfe1JsBm1Xu6LE3059z5Tr8m"
         roles:
           - superuser
         email: test_integration_user@example.com
