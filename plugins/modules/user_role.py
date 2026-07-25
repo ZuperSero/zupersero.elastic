@@ -142,6 +142,27 @@ options:
       - Can also be set via the ELASTICSEARCH_VALIDATE_CERTS environment variable.
     type: bool
     default: true
+  client_cert:
+    description:
+      - PEM-formatted client certificate chain.
+    type: path
+  client_key:
+    description:
+      - PEM-formatted private key for the client certificate.
+    type: path
+  force_basic_auth:
+    description:
+      - Send the basic authentication header with the initial request.
+    type: bool
+    default: false
+  url_username:
+    description:
+      - Username embedded in URL authentication.
+    type: str
+  url_password:
+    description:
+      - Password embedded in URL authentication.
+    type: str
   timeout:
     description:
       - Timeout in seconds for API requests.

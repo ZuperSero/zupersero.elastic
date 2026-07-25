@@ -8,7 +8,6 @@ init:
         antsibull-core==3.5.0 \
         passlib==1.7.4
 
-
 activate:
     source .venv/bin/activate
 
@@ -32,15 +31,24 @@ integration_act:
     act push -W .github/workflows/ansible-test-integration.yml -P ubuntu-latest=ghcr.io/catthehacker/ubuntu:full-22.04 --container-options "--privileged --network host --user 0:0"
 
 elastic:
-    wget https://elastic.co/start-local
-    sed -i 's/check_disk_space_gb ${min_disk_space_required}/#check_disk_space_gb ${min_disk_space_required}/' start-local
-    chmod +x start-local
-    ES_LOCAL_PASSWORD="changeme" ./start-local -v 9.2.0
-    rm start-local
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ -x elastic-start-local/start.sh ]]; then
+        elastic-start-local/start.sh
+        exit 0
+    fi
+    mkdir -p .build
+    curl --fail --silent --show-error --location \
+        --output .build/start-local.sh \
+        https://elastic.co/start-local
+    chmod +x .build/start-local.sh
+    ES_LOCAL_PASSWORD="changeme" .build/start-local.sh -v 9.2.0
+
+elastic_stop:
+    elastic-start-local/stop.sh
 
 elastic_teardown:
     elastic-start-local/uninstall.sh
-    rm -rf elastic-start-local
 
 docker_cleanup:
     docker stop $(docker ps -a -q) || true

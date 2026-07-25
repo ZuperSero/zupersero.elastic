@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ..elasticsearch import ElasticsearchClient
 
+
 class UserService:
     """
     Service for managing Elasticsearch users.

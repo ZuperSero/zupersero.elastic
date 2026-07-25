@@ -4,11 +4,13 @@ on:
     branches: [main]
     paths:
       - "tests/integration/**"
+      - "plugins/**"
       - ".github/workflows/ansible-test-integration.yml"
   push:
     branches: [dev]
     paths:
       - "tests/integration/**"
+      - "plugins/**"
       - ".github/workflows/ansible-test-integration.yml"
 
 jobs:
@@ -41,20 +43,6 @@ jobs:
           echo "Elasticsearch did not become ready after 15 attempts."
           exit 1
 
-      - name: Wait for Kibana
-        run: |
-          set -euo pipefail
-          for i in {1..15}; do
-          if curl -fsS -u "elastic:changeme" -H "kbn-xsrf: true" "http://localhost:5601/api/status" | grep -q '"level":"available"'; then
-              echo "Kibana is ready."
-              exit 0
-          fi
-          echo "Waiting for Kibana... ($i/15)"
-          sleep 5
-          done
-          echo "Kibana did not become ready after 15 attempts."
-          exit 1
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -66,7 +54,7 @@ jobs:
           pip install ansible-core==${{ matrix.ansible_core }} ansible-lint coverage==7.6.1 passlib
 
 
-      - name: make test directory
+      - name: Make test directory
         run: mkdir -p ansible_collections/zupersero/elastic
 
       - uses: actions/checkout@v4
