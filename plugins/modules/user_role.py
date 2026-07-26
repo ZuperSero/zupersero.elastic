@@ -118,6 +118,12 @@ options:
       - Can also be set via the ELASTICSEARCH_URL environment variable.
     required: false
     type: str
+  urls:
+    description:
+      - Elasticsearch URLs used in order for request failover.
+      - Can also be set as a comma-separated ELASTICSEARCH_URLS environment variable.
+    type: list
+    elements: str
   username:
     description:
       - Username for authenticating to Elasticsearch.
@@ -136,12 +142,33 @@ options:
       - Can also be set via the ELASTICSEARCH_API_KEY environment variable.
     required: false
     type: str
+  bearer_token:
+    description:
+      - Bearer token for authenticating to Elasticsearch.
+      - Can also be set via the ELASTICSEARCH_BEARER_TOKEN environment variable.
+    type: str
+  headers:
+    description:
+      - Additional HTTP headers sent with every request.
+      - Can also be set as JSON via the ELASTICSEARCH_HEADERS environment variable.
+    type: dict
+    default: {}
   validate_certs:
     description:
       - Whether to validate SSL certificates.
       - Can also be set via the ELASTICSEARCH_VALIDATE_CERTS environment variable.
     type: bool
     default: true
+  ca_path:
+    description:
+      - Path to a PEM CA certificate bundle.
+      - Can also be set via the ELASTICSEARCH_CA_PATH environment variable.
+    type: path
+  ca_data:
+    description:
+      - PEM CA certificate data.
+      - Can also be set via the ELASTICSEARCH_CA_DATA environment variable.
+    type: str
   client_cert:
     description:
       - PEM-formatted client certificate chain.
@@ -150,6 +177,12 @@ options:
     description:
       - PEM-formatted private key for the client certificate.
     type: path
+  certificate_fingerprint:
+    description:
+      - SHA-256 fingerprint of the HTTPS server leaf certificate.
+      - Uses an unauthenticated TLS preflight and cannot be combined with I(client_cert).
+      - Can also be set via the ELASTICSEARCH_CERTIFICATE_FINGERPRINT environment variable.
+    type: str
   force_basic_auth:
     description:
       - Send the basic authentication header with the initial request.
@@ -178,10 +211,23 @@ options:
       - Seconds to wait between retry attempts.
     type: float
     default: 1.0
+  retry_status_codes:
+    description:
+      - HTTP status codes that trigger endpoint failover and retry for safe read methods.
+      - Mutating methods are not retried automatically.
+    type: list
+    elements: int
+    default: [429, 502, 503, 504]
+  retry_mutating_requests:
+    description:
+      - Whether mutating requests can be retried and failed over.
+      - Can also be set via the ELASTICSEARCH_RETRY_MUTATING_REQUESTS environment variable.
+    type: bool
+    default: false
 requirements:
   - ansible.module_utils.urls
 notes:
-  - Authentication uses I(api_key) or I(username)+I(password).
+  - Authentication uses I(api_key), I(bearer_token), or I(username)+I(password).
 '''
 
 EXAMPLES = r'''
@@ -194,8 +240,8 @@ EXAMPLES = r'''
     cluster:
       - monitor
     indices:
-      - names: [ "logs-*" ]
-        privileges: [ "read" ]
+      - names: ["logs-*"]
+        privileges: ["read"]
         allow_restricted_indices: false
 
 - name: Manage application privileges
@@ -206,8 +252,8 @@ EXAMPLES = r'''
     name: kibana_reader
     applications:
       - application: kibana-.kibana
-        privileges: [ "read" ]
-        resources: [ "*" ]
+        privileges: ["read"]
+        resources: ["*"]
     run_as:
       - analyst
     state: present

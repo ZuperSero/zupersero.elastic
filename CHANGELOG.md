@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add shared Phase 0 API client foundations and generic object, request, and
+  information modules.
+
 
 
 ## [1.0.0] - 2025-01-18

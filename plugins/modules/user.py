@@ -99,12 +99,39 @@ options:
       - Can also be set via the ELASTICSEARCH_URL environment variable.
     required: false
     type: str
+  urls:
+    description:
+      - Elasticsearch URLs used in order for request failover.
+      - Can also be set as a comma-separated ELASTICSEARCH_URLS environment variable.
+    type: list
+    elements: str
+  bearer_token:
+    description:
+      - Bearer token for authenticating to Elasticsearch.
+      - Can also be set via the ELASTICSEARCH_BEARER_TOKEN environment variable.
+    type: str
+  headers:
+    description:
+      - Additional HTTP headers sent with every request.
+      - Can also be set as JSON via the ELASTICSEARCH_HEADERS environment variable.
+    type: dict
+    default: {}
   validate_certs:
     description:
       - Whether to validate SSL certificates.
       - Can also be set via the ELASTICSEARCH_VALIDATE_CERTS environment variable.
     type: bool
     default: true
+  ca_path:
+    description:
+      - Path to a PEM CA certificate bundle.
+      - Can also be set via the ELASTICSEARCH_CA_PATH environment variable.
+    type: path
+  ca_data:
+    description:
+      - PEM CA certificate data.
+      - Can also be set via the ELASTICSEARCH_CA_DATA environment variable.
+    type: str
   client_cert:
     description:
       - PEM formatted certificate chain file for SSL client authentication.
@@ -113,6 +140,12 @@ options:
     description:
       - PEM formatted private key file for SSL client authentication.
     type: path
+  certificate_fingerprint:
+    description:
+      - SHA-256 fingerprint of the HTTPS server leaf certificate.
+      - Uses an unauthenticated TLS preflight and cannot be combined with I(client_cert).
+      - Can also be set via the ELASTICSEARCH_CERTIFICATE_FINGERPRINT environment variable.
+    type: str
   force_basic_auth:
     description:
       - Force sending basic authentication header on the first request.
@@ -141,10 +174,23 @@ options:
       - Seconds to wait between retry attempts.
     type: float
     default: 1.0
+  retry_status_codes:
+    description:
+      - HTTP status codes that trigger endpoint failover and retry for safe read methods.
+      - Mutating methods are not retried automatically.
+    type: list
+    elements: int
+    default: [429, 502, 503, 504]
+  retry_mutating_requests:
+    description:
+      - Whether mutating requests can be retried and failed over.
+      - Can also be set via the ELASTICSEARCH_RETRY_MUTATING_REQUESTS environment variable.
+    type: bool
+    default: false
 requirements:
   - ansible.module_utils.urls
 notes:
-  - Authentication uses I(auth_api_key) or I(auth_username)+I(auth_password).
+  - Authentication uses I(auth_api_key), I(bearer_token), or I(auth_username)+I(auth_password).
   - Passwords are not returned by the API and cannot be read for comparison.
 '''
 
@@ -324,15 +370,26 @@ def main() -> None:
         email=dict(type='str', required=False, default=None),
         metadata=dict(type='dict', required=False, default=None),
         enabled=dict(type='bool', required=False, default=None),
-        update_password=dict(type='str', choices=['always', 'on_create'], default='on_create'),
+        update_password=dict(type='str', choices=['always', 'on_create'], default='on_create', no_log=False),
     )
 
     module = AnsibleModule(
         argument_spec=argument_spec,
         supports_check_mode=True,
         required_if=elasticsearch.elasticsearch_required_if(),
-        required_together=elasticsearch.elasticsearch_required_together(),
-        mutually_exclusive=[['password', 'password_hash']],
+        required_together=elasticsearch.elasticsearch_required_together(
+            username='auth_username',
+            password='auth_password',
+        ),
+        mutually_exclusive=[
+            *elasticsearch.elasticsearch_mutually_exclusive(
+                username='auth_username',
+                password='auth_password',
+                api_key='auth_api_key',
+                bearer_token='bearer_token',
+            ),
+            ['password', 'password_hash'],
+        ],
     )
 
     # Preserve managed user fields before swapping in auth creds for the client
@@ -402,7 +459,7 @@ def main() -> None:
                 status_code, response = client.user.create_or_update(username, payload)
                 if status_code not in [200, 201]:
                     error_msg = response.get('error', 'Unknown error') if isinstance(response, dict) else 'Unknown error'
-                    module.fail_json(msg=f"Failed to update user: {error_msg}", status_code=status_code, response=response, payload=payload)
+                    module.fail_json(msg=f"Failed to update user: {error_msg}", status_code=status_code, response=response)
 
                 status_code, updated_user = client.user.get(username)
                 result['user'] = updated_user if status_code == 200 else response
@@ -412,13 +469,9 @@ def main() -> None:
         if user_exists:
             result['changed'] = True
             result['user'] = current_user if isinstance(current_user, dict) else {'username': username}
-            # Preserve username and present a consistent enabled flag for reporting
+            # Preserve the last observed state in the deletion result.
             if isinstance(result['user'], dict):
                 result['user'].setdefault('username', username)
-                if result['user'].get('enabled') is False:
-                    result['user']['enabled'] = True
-                elif 'enabled' not in result['user']:
-                    result['user']['enabled'] = True
 
             if module.check_mode:
                 module.exit_json(**result)

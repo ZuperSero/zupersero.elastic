@@ -2,20 +2,28 @@ init:
     uv venv --allow-existing --python 3.11
     source .venv/bin/activate
     uv pip install \
-        ansible-core==2.19.5 \
-        ansible-lint==26.1.1 \
-        ruff==0.14.13 \
-        antsibull-core==3.5.0 \
-        passlib==1.7.4
+        "ansible-core>=2.19.5" \
+        "ansible-lint>=26.1.1" \
+        "coverage==7.6.1" \
+        "ruff>=0.14.13" \
+        "molecule>=26.6.0" \
+        "molecule-plugins[docker]>=26.7.15" \
+        "antsibull-core>=3.5.0" \
+        "antsibull-docs>=2.24.0" \
+        "passlib>=1.7.4"
+    .venv/bin/ansible-galaxy collection install \
+        -r extensions/molecule/elasticsearch/collections.yml \
+        --force
 
 activate:
     source .venv/bin/activate
 
 install:
-    ansible-galaxy collection install . --force
+    .venv/bin/ansible-galaxy collection install . --force
 
 molecule:
-    molecule test --scenario-name elasticsearch
+    .venv/bin/ansible-galaxy collection install . --force
+    cd extensions && PATH="{{ justfile_directory() }}/.venv/bin:$PATH" molecule test --scenario-name elasticsearch
 
 ruff:
     .venv/bin/ruff check .
@@ -55,8 +63,8 @@ docker_cleanup:
     docker rm $(docker ps -a -q) || true
 
 docs:
-    ansible-galaxy collection install . --force
+    .venv/bin/ansible-galaxy collection install . --force
     mkdir -p .build/docs
-    antsibull-docs sphinx-init --use-current --dest-dir .build/docs zupersero.elastic
-    uv pip install -r .build/docs/requirements.txt
-    cd .build/docs && ./build.sh
+    .venv/bin/antsibull-docs sphinx-init --use-current --dest-dir .build/docs zupersero.elastic
+    uv pip install --python .venv/bin/python -r .build/docs/requirements.txt
+    cd .build/docs && PATH="{{ justfile_directory() }}/.venv/bin:$PATH" ./build.sh

@@ -2,26 +2,28 @@
 - name: Prepare
   hosts: all
   gather_facts: true
+  vars:
+    elasticsearch_molecule_platform_packages:
+      debian13:
+        - procps
   tasks:
-    - name: Get platform configuration
-      ansible.builtin.set_fact:
-        platform_config: "{{ molecule_yml.platforms | selectattr('name', 'equalto', inventory_hostname) | first }}"
-
     - name: Install platform-specific packages (Debian)
       ansible.builtin.apt:
-        name: "{{ platform_config.packages }}"
+        name: "{{ elasticsearch_molecule_platform_packages[inventory_hostname] }}"
         state: present
         update_cache: true
+      async: 600
+      poll: 10
       when:
-        - platform_config.packages is defined
-        - platform_config.packages | length > 0
+        - inventory_hostname in elasticsearch_molecule_platform_packages
         - ansible_facts["os_family"] == "Debian"
 
     - name: Install platform-specific packages (RedHat)
       ansible.builtin.dnf:
-        name: "{{ platform_config.packages }}"
+        name: "{{ elasticsearch_molecule_platform_packages[inventory_hostname] }}"
         state: present
+      async: 600
+      poll: 10
       when:
-        - platform_config.packages is defined
-        - platform_config.packages | length > 0
+        - inventory_hostname in elasticsearch_molecule_platform_packages
         - ansible_facts["os_family"] == "RedHat"

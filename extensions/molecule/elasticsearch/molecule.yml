@@ -1,8 +1,6 @@
 ---
 dependency:
   name: galaxy
-  options:
-    ignore-errors: true
 driver:
   name: docker
 platforms:
@@ -10,25 +8,28 @@ platforms:
     image: antmelekhin/docker-systemd:ubuntu-24.04
   - name: debian13
     image: antmelekhin/docker-systemd:debian-13
-    packages:
-      - procps
   - name: rocky10
     image: antmelekhin/docker-systemd:rockylinux-10
 provisioner:
   name: ansible
+ansible:
   playbooks:
     create: create.yml
     prepare: prepare.yml
     converge: converge.yml
     verify: verify.yml
     destroy: destroy.yml
+  cfg:
+    defaults:
+      interpreter_python: auto_silent
+scenario:
   test_sequence:
+    - dependency
+    - destroy
+    - syntax
     - create
     - prepare
     - converge
     - idempotence
     - verify
     - destroy
-  config_options:
-    defaults:
-      interpreter_python: auto_silent

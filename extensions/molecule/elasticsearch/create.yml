@@ -12,6 +12,7 @@
         name: "{{ item.name }}"
         image: "{{ item.image }}"
         state: started
+        recreate: true
         privileged: true
         volumes:
           - /sys/fs/cgroup:/sys/fs/cgroup:rw
@@ -20,12 +21,7 @@
           - /run/lock
         cgroupns_mode: host
         log_driver: json-file
-      register: result
       loop: "{{ molecule_yml.platforms }}"
-
-    - name: Print some info
-      ansible.builtin.debug:
-        msg: "{{ result.results }}"
 
     - name: Add container to molecule_inventory
       vars:

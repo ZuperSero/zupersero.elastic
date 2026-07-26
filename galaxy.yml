@@ -40,4 +40,21 @@ homepage: https://github.com/ZuperSero/zupersero.elastic
 
 issues: https://github.com/ZuperSero/zupersero.elastic/issues
 
-build_ignore: []
+build_ignore:
+  - .ansible
+  - .build
+  - .github
+  - .gitignore
+  - .pytest_cache
+  - .ruff_cache
+  - .venv
+  - AGENTS.md
+  - elastic-start-local
+  - error-start-local.log
+  - extensions
+  - justfile
+  - start-local
+  - start-local.1
+  - start-local.2
+  - start-local.3
+  - tests

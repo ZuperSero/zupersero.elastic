@@ -7,6 +7,8 @@
       - gnupg
     state: present
     update_cache: true
+  async: "{{ ansible_check_mode | ternary(0, elasticsearch_package_install_timeout) }}"
+  poll: 10
 
 - name: Setup gpg key
   block:
@@ -18,6 +20,7 @@
         owner: root
         group: root
         mode: '0644'
+        timeout: "{{ elasticsearch_download_timeout }}"
 
     - name: Get gpg fingerprint from downloaded key # noqa var-naming[no-role-prefix]
       ansible.builtin.command:
@@ -60,6 +63,8 @@
     state: present
     filename: "elastic-{{ elasticsearch_major_version }}.x"
     update_cache: true
+  async: "{{ ansible_check_mode | ternary(0, elasticsearch_package_install_timeout) }}"
+  poll: 10
 
 - name: Get the apt package facts
   ansible.builtin.package_facts:
@@ -82,6 +87,8 @@
         state: present
         update_cache: true
         allow_downgrade: "{{ elasticsearch_allow_downgrade }}"
+      async: "{{ ansible_check_mode | ternary(0, elasticsearch_package_install_timeout) }}"
+      poll: 10
 
     - name: Hold elasticsearch
       ansible.builtin.dpkg_selections:

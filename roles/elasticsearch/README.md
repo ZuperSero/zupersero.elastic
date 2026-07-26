@@ -16,6 +16,8 @@ Role Variables
 | `elasticsearch_version` | `9.2.1` | Elasticsearch version to install |
 | `elasticsearch_bootstrap` | `false` | Enable bootstrap tasks |
 | `elasticsearch_install_method` | `package` | Installation method (package or tar) |
+| `elasticsearch_download_timeout` | `30` | Repository signing key download timeout in seconds |
+| `elasticsearch_package_install_timeout` | `1800` | Maximum package manager operation runtime in seconds |
 | `elasticsearch_jvm_heap_size` | `8g` | JVM heap size |
 | `elasticsearch_config_content` | See defaults | Elasticsearch configuration as YAML |
 | `elasticsearch_secure_config` | `{}` | Keystore settings |

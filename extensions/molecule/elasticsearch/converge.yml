@@ -2,22 +2,18 @@
 - name: Converge
   hosts: molecule
   gather_facts: true
+  serial: 1
   tasks:
-    - name: Converge flag
-      ansible.builtin.debug:
-        msg: |
-          ***************************************
-          ***************************************
-          ********* Converge Started ************
-          ***************************************
-          ***************************************
-
     - name: Apply elasticsearch role with bootstrap
       ansible.builtin.include_role:
         name: zupersero.elastic.elasticsearch
       vars:
         elasticsearch_bootstrap: true
-        elasticsearch_jvm_heap_size: "4g"
+        elasticsearch_jvm_heap_size: "512m"
+        elasticsearch_package_install_timeout: 900
+        elasticsearch_systemd_service_overrides: |
+          [Service]
+          Environment=ELASTICSEARCH_MOLECULE_TEST=enabled
       tags:
         - molecule-idempotence-notest
 
@@ -26,4 +22,8 @@
         name: zupersero.elastic.elasticsearch
       vars:
         elasticsearch_bootstrap: false
-        elasticsearch_jvm_heap_size: "4g"
+        elasticsearch_jvm_heap_size: "512m"
+        elasticsearch_package_install_timeout: 900
+        elasticsearch_systemd_service_overrides: |
+          [Service]
+          Environment=ELASTICSEARCH_MOLECULE_TEST=enabled

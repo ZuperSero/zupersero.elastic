@@ -5,11 +5,23 @@
       - gnupg2
       - python3-dnf-plugin-versionlock
     state: present
+  async: "{{ ansible_check_mode | ternary(0, elasticsearch_package_install_timeout) }}"
+  poll: 10
+
+- name: Download the Elastic signing key
+  ansible.builtin.get_url:
+    url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    dest: /tmp/elastic.gpg
+    checksum: sha256:db52809c5f6b27f9c2bed45cb43e398c659275f3d35305653c6750a0db90f5eb
+    owner: root
+    group: root
+    mode: "0644"
+    timeout: "{{ elasticsearch_download_timeout }}"
 
 - name: Import GPG key
   ansible.builtin.rpm_key:
     state: present
-    key: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    key: /tmp/elastic.gpg
     fingerprint: "46095ACC8548582C1A2699A9D27D666CD88E42B4"
 
 
@@ -39,6 +51,8 @@
       ansible.builtin.dnf:
         name: "elasticsearch-{{ elasticsearch_version }}"
         state: present
+      async: "{{ ansible_check_mode | ternary(0, elasticsearch_package_install_timeout) }}"
+      poll: 10
 
     - name: Versionlock elasticsearch
       community.general.dnf_versionlock:

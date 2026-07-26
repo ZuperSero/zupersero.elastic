@@ -5,7 +5,7 @@ galaxy_info:
 
   license: BSD
 
-  min_ansible_version: "2.14"
+  min_ansible_version: "2.15"
 
   platforms:
     - name: Debian
@@ -59,6 +59,14 @@ argument_specs:
         description: Allow downgrading Elasticsearch
         type: bool
         default: false
+      elasticsearch_download_timeout:
+        description: Timeout in seconds for repository signing key downloads
+        type: int
+        default: 30
+      elasticsearch_package_install_timeout:
+        description: Maximum runtime in seconds for package manager operations
+        type: int
+        default: 1800
       elasticsearch_systemd_service_overrides:
         description: Systemd service override content
         type: str

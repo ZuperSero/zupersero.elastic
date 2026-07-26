@@ -3,15 +3,70 @@
   hosts: molecule
   gather_facts: false
   tasks:
-    - name: Check for errors in log # noqa var-naming[no-role-prefix]
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+
+    - name: Assert that the Elasticsearch package is installed
+      ansible.builtin.assert:
+        that:
+          - "'elasticsearch' in ansible_facts.packages"
+
+    - name: Read the Elasticsearch configuration
+      ansible.builtin.slurp:
+        path: /etc/elasticsearch/elasticsearch.yml
+      register: elasticsearch_config_file
+
+    - name: Decode the Elasticsearch configuration
+      ansible.builtin.set_fact:
+        elasticsearch_rendered_config: "{{ elasticsearch_config_file.content | b64decode | from_yaml }}"
+
+    - name: Assert the Elasticsearch configuration was rendered
+      ansible.builtin.assert:
+        that:
+          - elasticsearch_rendered_config.cluster.name == "my_cluster"
+          - elasticsearch_rendered_config.discovery.type == "single-node"
+          - elasticsearch_rendered_config.http.port == 9200
+          - elasticsearch_rendered_config.xpack.security.enabled is false
+
+    - name: Read the custom JVM options
+      ansible.builtin.slurp:
+        path: /etc/elasticsearch/jvm.options.d/90-custom.options
+      register: elasticsearch_jvm_options_file
+
+    - name: Assert the configured JVM heap size
+      vars:
+        elasticsearch_jvm_options: "{{ elasticsearch_jvm_options_file.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'-Xms512m' in elasticsearch_jvm_options"
+          - "'-Xmx512m' in elasticsearch_jvm_options"
+
+    - name: Read the Elasticsearch service process ID # noqa command-instead-of-module
+      ansible.builtin.command:
+        cmd: systemctl show elasticsearch.service --property=MainPID --value
+      register: elasticsearch_service_pid
+      changed_when: false
+      failed_when: elasticsearch_service_pid.stdout | int <= 0
+
+    - name: Read the Elasticsearch process environment
+      ansible.builtin.slurp:
+        path: "/proc/{{ elasticsearch_service_pid.stdout | trim }}/environ"
+      register: elasticsearch_process_environment
+
+    - name: Assert the systemd override reached the service process
+      ansible.builtin.assert:
+        that:
+          - "'ELASTICSEARCH_MOLECULE_TEST=enabled' in (elasticsearch_process_environment.content | b64decode)"
+
+    - name: Check for errors in log
       ansible.builtin.slurp:
         path: /var/log/elasticsearch/my_cluster.log
-      register: es_log
+      register: elasticsearch_log
 
     - name: Fail if errors found in log
       ansible.builtin.fail:
-        msg: "Errors found in Elasticsearch log:\n{{ es_log.content | b64decode }}"
-      when: "'ERROR' in (es_log.content | b64decode)"
+        msg: "Errors found in Elasticsearch log:\n{{ elasticsearch_log.content | b64decode }}"
+      when: "'ERROR' in (elasticsearch_log.content | b64decode)"
 
     - name: Gather service facts
       ansible.builtin.service_facts:
@@ -26,30 +81,24 @@
       ansible.builtin.uri:
         url: http://localhost:9200
         method: GET
-        user: elastic
-        password: "changeme"
-        force_basic_auth: true
         status_code: 200
+        timeout: 10
       register: elasticsearch_health
-      retries: 10
-      delay: 3
-      until: elasticsearch_health.status == 200
+      retries: 60
+      delay: 5
+      until: elasticsearch_health.status | default(0) == 200
 
-    - name: Display Elasticsearch cluster info
-      ansible.builtin.debug:
-        msg: "Elasticsearch cluster '{{ elasticsearch_health.json.cluster_name }}' is running version {{ elasticsearch_health.json.version.number }}"
+    - name: Assert the Elasticsearch node identity
+      ansible.builtin.assert:
+        that:
+          - elasticsearch_health.json.cluster_name == "my_cluster"
+          - elasticsearch_health.json.version.number == "9.2.1"
 
-    - name: Verify cluster health is at least yellow # noqa var-naming[no-role-prefix]
+    - name: Verify cluster health is at least yellow
       ansible.builtin.uri:
         url: http://localhost:9200/_cluster/health
         method: GET
-        user: elastic
-        password: "changeme"
-        force_basic_auth: true
         return_content: true
-      register: cluster_health
-      failed_when: cluster_health.json.status not in ["green", "yellow"]
-
-    - name: Display cluster health status
-      ansible.builtin.debug:
-        msg: "Cluster health status: {{ cluster_health.json.status }}"
+        timeout: 10
+      register: elasticsearch_cluster_health
+      failed_when: elasticsearch_cluster_health.json.status not in ["green", "yellow"]
