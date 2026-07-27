@@ -17,19 +17,10 @@ import time
 import urllib.error
 import urllib.parse
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 from ansible.module_utils.basic import env_fallback
 from ansible.module_utils.urls import basic_auth_header, open_url, url_argument_spec
-
-if TYPE_CHECKING:
-    from .elasticsearch_services import RoleService, UserService
-else:
-    from ansible_collections.zupersero.elastic.plugins.module_utils.elasticsearch_services import (
-        RoleService,
-        UserService,
-    )
-
 
 DEFAULT_SUCCESS_CODES = list(range(200, 300))
 DEFAULT_RETRY_STATUS_CODES = [429, 502, 503, 504]
@@ -39,6 +30,7 @@ SENSITIVE_KEY_PATTERN = re.compile(
     re.IGNORECASE,
 )
 FEATURE_MINIMUM_VERSIONS = {
+    "data_stream": (7, 9, 0),
     "data_stream_lifecycle": (8, 11, 0),
     "inference": (8, 11, 0),
     "query_rules": (8, 10, 0),
@@ -474,6 +466,17 @@ class ElasticsearchClient:
     """Elasticsearch HTTP client with authentication, TLS, failover, and retries."""
 
     def __init__(self, module: Any) -> None:
+        from ansible_collections.zupersero.elastic.plugins.module_utils.elasticsearch_services import (
+            ComponentTemplateService,
+            DataStreamLifecycleService,
+            DataStreamService,
+            IndexService,
+            IndexTemplateService,
+            LifecycleService,
+            RoleService,
+            UserService,
+        )
+
         self.module = module
         params = module.params
         self.endpoints = self._resolve_endpoints(params.get("url"), params.get("urls"))
@@ -504,6 +507,12 @@ class ElasticsearchClient:
         self._server_info: dict[str, Any] | None = None
         self._validate_options()
 
+        self.index = IndexService(self)
+        self.data_stream = DataStreamService(self)
+        self.data_stream_lifecycle = DataStreamLifecycleService(self)
+        self.component_template = ComponentTemplateService(self)
+        self.index_template = IndexTemplateService(self)
+        self.lifecycle = LifecycleService(self)
         self.role = RoleService(self)
         self.user = UserService(self)
 
