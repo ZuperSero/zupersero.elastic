@@ -30,6 +30,7 @@ tags:
 
 dependencies:
   community.general: ">=12.2.0"
+  community.docker: ">=4.8.0"
   ansible.posix: ">=2.1.0"
 
 repository: https://github.com/ZuperSero/zupersero.elastic

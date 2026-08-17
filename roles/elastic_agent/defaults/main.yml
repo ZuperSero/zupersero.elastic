@@ -1,0 +1,31 @@
+---
+elastic_agent_version: "auto"
+
+elastic_agent_fleet_url: ""
+elastic_agent_policy_id: ""
+
+elastic_agent_kibana_url: ""
+elastic_agent_kibana_username: ""
+elastic_agent_kibana_password: ""
+elastic_agent_kibana_api_key: ""
+
+elastic_agent_elasticsearch_url: ""
+elastic_agent_elasticsearch_username: ""
+elastic_agent_elasticsearch_password: ""
+elastic_agent_elasticsearch_api_key: ""
+
+elastic_agent_validate_certs: true
+elastic_agent_certificate_authorities: ""
+elastic_agent_ca_sha256: ""
+elastic_agent_insecure: false
+
+elastic_agent_download_base_url: "https://artifacts.elastic.co/downloads/beats/elastic-agent"
+elastic_agent_artifact_url: ""
+elastic_agent_artifact_checksum: ""
+
+elastic_agent_api_delegate: localhost
+elastic_agent_download_dir: "/tmp"
+elastic_agent_install_base_path: "/opt"
+elastic_agent_binary_path: "/opt/Elastic/Agent/elastic-agent"
+elastic_agent_service_name: "elastic-agent"
+elastic_agent_enrollment_token_name: "ansible-{{ inventory_hostname }}-{{ elastic_agent_policy_id }}"

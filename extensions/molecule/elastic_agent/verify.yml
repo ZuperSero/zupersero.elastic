@@ -1,0 +1,42 @@
+---
+- name: Verify
+  hosts: molecule
+  gather_facts: false
+  tasks:
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Check if Elastic Agent is running
+      ansible.builtin.assert:
+        that:
+          - "'elastic-agent.service' in ansible_facts.services"
+          - "ansible_facts.services['elastic-agent.service'].state == 'running'"
+
+    - name: Check installed Elastic Agent version
+      ansible.builtin.command:
+        cmd: /opt/Elastic/Agent/elastic-agent version
+      register: _elastic_agent_version
+      changed_when: false
+
+    - name: Verify installed Elastic Agent version
+      ansible.builtin.assert:
+        that:
+          - "'9.2.0' in _elastic_agent_version.stdout"
+
+    - name: Read mock Fleet enrollment state
+      ansible.builtin.slurp:
+        path: /tmp/elastic-agent-mock/state.json
+      register: _elastic_agent_mock_state
+
+    - name: Verify created enrollment token
+      ansible.builtin.assert:
+        that:
+          - >
+            (
+              _elastic_agent_mock_state.content
+              | b64decode
+              | from_json
+            )['items']
+            | selectattr('policy_id', 'equalto', 'create-policy')
+            | list
+            | length == 1

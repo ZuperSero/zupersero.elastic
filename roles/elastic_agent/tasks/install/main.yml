@@ -1,0 +1,72 @@
+---
+- name: Check installed Elastic Agent binary
+  ansible.builtin.stat:
+    path: "{{ elastic_agent_binary_path }}"
+  register: _elastic_agent_binary
+
+- name: Read installed Elastic Agent version
+  ansible.builtin.command:
+    cmd: "{{ elastic_agent_binary_path }} version"
+  register: _elastic_agent_installed_version
+  changed_when: false
+  failed_when: false
+  when: _elastic_agent_binary.stat.exists
+
+- name: Set Elastic Agent installed version fact
+  ansible.builtin.set_fact:
+    _elastic_agent_installed_version_number: "{{ _elastic_agent_installed_version.stdout | regex_search('[0-9]+\\.[0-9]+\\.[0-9]+') | default('', true) }}"
+  when: _elastic_agent_binary.stat.exists
+
+- name: Fail on unsupported Elastic Agent version change
+  ansible.builtin.fail:
+    msg: >-
+      Elastic Agent {{ _elastic_agent_installed_version_number }} is already installed,
+      but {{ elastic_agent_effective_version }} was requested. Upgrades/re-enrollment
+      are not supported by this role version.
+  when:
+    - _elastic_agent_binary.stat.exists
+    - _elastic_agent_installed_version_number | length > 0
+    - _elastic_agent_installed_version_number != elastic_agent_effective_version
+
+- name: Download Elastic Agent archive
+  ansible.builtin.get_url:
+    url: "{{ elastic_agent_effective_artifact_url }}"
+    dest: "{{ elastic_agent_archive_path }}"
+    checksum: "{{ elastic_agent_artifact_checksum | default(omit, true) }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: not _elastic_agent_binary.stat.exists
+
+- name: Extract Elastic Agent archive
+  ansible.builtin.unarchive:
+    src: "{{ elastic_agent_archive_path }}"
+    dest: "{{ elastic_agent_download_dir }}"
+    remote_src: true
+    owner: root
+    group: root
+  when: not _elastic_agent_binary.stat.exists
+
+- name: Install and enroll Elastic Agent
+  ansible.builtin.command:
+    argv: >-
+      {{
+        [
+          './elastic-agent',
+          'install',
+          '--url', elastic_agent_fleet_url,
+          '--enrollment-token', _elastic_agent_enrollment_token,
+          '--base-path', elastic_agent_install_base_path,
+          '--non-interactive',
+          '--force'
+        ]
+        + (['--certificate-authorities', elastic_agent_certificate_authorities] if elastic_agent_certificate_authorities | length > 0 else [])
+        + (['--ca-sha256', elastic_agent_ca_sha256] if elastic_agent_ca_sha256 | length > 0 else [])
+        + (['--insecure'] if elastic_agent_insecure else [])
+      }}
+    chdir: "{{ elastic_agent_extract_dir }}"
+  register: _elastic_agent_install
+  changed_when: true
+  no_log: true
+  when: not _elastic_agent_binary.stat.exists
+  notify: Restart Elastic Agent

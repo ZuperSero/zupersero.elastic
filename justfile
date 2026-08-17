@@ -68,3 +68,4 @@ docs:
     .venv/bin/antsibull-docs sphinx-init --use-current --dest-dir .build/docs zupersero.elastic
     uv pip install --python .venv/bin/python -r .build/docs/requirements.txt
     cd .build/docs && PATH="{{ justfile_directory() }}/.venv/bin:$PATH" ./build.sh
+    python3 -m http.server --directory .build/docs/build/html

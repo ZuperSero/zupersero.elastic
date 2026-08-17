@@ -1,0 +1,30 @@
+---
+- name: Validate supported platform
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.system == "Linux"
+      - ansible_facts.service_mgr == "systemd"
+      - ansible_facts.os_family in ["Debian", "RedHat"]
+      - elastic_agent_resolved_architecture | length > 0
+    fail_msg: "Elastic Agent tarball installation requires Linux, systemd, Debian/RedHat family, and a supported architecture."
+
+- name: Validate required Fleet inputs
+  ansible.builtin.assert:
+    that:
+      - elastic_agent_fleet_url | length > 0
+      - elastic_agent_policy_id | length > 0
+      - elastic_agent_kibana_url | length > 0
+      - >
+        elastic_agent_kibana_api_key | length > 0 or
+        (elastic_agent_kibana_username | length > 0 and elastic_agent_kibana_password | length > 0)
+    fail_msg: "Set Fleet URL, policy ID, Kibana URL, and either Kibana API key or Kibana username/password."
+
+- name: Validate auto version inputs
+  ansible.builtin.assert:
+    that:
+      - elastic_agent_elasticsearch_url | length > 0
+      - >
+        elastic_agent_elasticsearch_api_key | length > 0 or
+        (elastic_agent_elasticsearch_username | length > 0 and elastic_agent_elasticsearch_password | length > 0)
+    fail_msg: "elastic_agent_version=auto requires Elasticsearch URL and either Elasticsearch API key or username/password."
+  when: elastic_agent_version == "auto"
