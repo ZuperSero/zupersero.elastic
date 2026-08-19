@@ -470,9 +470,11 @@ class ElasticsearchClient:
             ComponentTemplateService,
             DataStreamLifecycleService,
             DataStreamService,
+            EnrichPolicyService,
             IndexService,
             IndexTemplateService,
             LifecycleService,
+            PipelineService,
             RoleService,
             UserService,
         )
@@ -510,9 +512,11 @@ class ElasticsearchClient:
         self.index = IndexService(self)
         self.data_stream = DataStreamService(self)
         self.data_stream_lifecycle = DataStreamLifecycleService(self)
+        self.enrich_policy = EnrichPolicyService(self)
         self.component_template = ComponentTemplateService(self)
         self.index_template = IndexTemplateService(self)
         self.lifecycle = LifecycleService(self)
+        self.pipeline = PipelineService(self)
         self.role = RoleService(self)
         self.user = UserService(self)
 

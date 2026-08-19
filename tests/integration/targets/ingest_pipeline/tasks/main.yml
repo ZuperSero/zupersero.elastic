@@ -1,0 +1,236 @@
+---
+- name: Test Elasticsearch ingest pipeline management
+  module_defaults:
+    zupersero.elastic.ingest_pipeline:
+      url: http://127.0.0.1:9200
+      username: elastic
+      password: changeme
+  block:
+    - name: Predict ingest pipeline creation
+      zupersero.elastic.ingest_pipeline:
+        name: phase1-pipeline-integration
+        description: Normalize integration events
+        processors:
+          - set:
+              field: event.kind
+              value: event
+        on_failure:
+          - set:
+              field: error.pipeline
+              value: phase1-pipeline-integration
+        metadata:
+          owner: integration
+      check_mode: true
+      diff: true
+      register: create_check
+
+    - name: Assert predicted ingest pipeline creation
+      ansible.builtin.assert:
+        that:
+          - create_check is changed
+          - create_check.status == 404
+          - create_check.ingest_pipeline.name == 'phase1-pipeline-integration'
+          - create_check.diff.before == {}
+          - create_check.diff.after.processors[0].set.field == 'event.kind'
+
+    - name: Create ingest pipeline
+      zupersero.elastic.ingest_pipeline:
+        name: phase1-pipeline-integration
+        description: Normalize integration events
+        processors:
+          - set:
+              field: event.kind
+              value: event
+        on_failure:
+          - set:
+              field: error.pipeline
+              value: phase1-pipeline-integration
+        metadata:
+          owner: integration
+      diff: true
+      register: create_result
+
+    - name: Assert ingest pipeline creation
+      ansible.builtin.assert:
+        that:
+          - create_result is changed
+          - create_result.status == 200
+          - create_result.ingest_pipeline.processors[0].set.field == 'event.kind'
+          - create_result.ingest_pipeline._meta.owner == 'integration'
+
+    - name: Reconcile created ingest pipeline
+      zupersero.elastic.ingest_pipeline:
+        name: phase1-pipeline-integration
+        description: Normalize integration events
+        processors:
+          - set:
+              field: event.kind
+              value: event
+        on_failure:
+          - set:
+              field: error.pipeline
+              value: phase1-pipeline-integration
+        metadata:
+          owner: integration
+      register: create_idempotent
+
+    - name: Assert created ingest pipeline is unchanged
+      ansible.builtin.assert:
+        that:
+          - create_idempotent is not changed
+          - create_idempotent.diff.before == create_idempotent.diff.after
+
+    - name: Predict partial ingest pipeline update
+      zupersero.elastic.ingest_pipeline:
+        name: phase1-pipeline-integration
+        description: Updated integration events
+        metadata:
+          purpose: attachment
+      check_mode: true
+      diff: true
+      register: update_check
+
+    - name: Assert predicted partial ingest pipeline update
+      ansible.builtin.assert:
+        that:
+          - update_check is changed
+          - update_check.ingest_pipeline.description == 'Updated integration events'
+          - update_check.ingest_pipeline.processors[0].set.field == 'event.kind'
+          - update_check.ingest_pipeline._meta.owner == 'integration'
+          - update_check.ingest_pipeline._meta.purpose == 'attachment'
+
+    - name: Read ingest pipeline after update check mode
+      zupersero.elastic.ingest_pipeline:
+        name: phase1-pipeline-integration
+      register: update_check_read
+
+    - name: Assert update check mode did not mutate ingest pipeline
+      ansible.builtin.assert:
+        that:
+          - update_check_read is not changed
+          - update_check_read.ingest_pipeline.description == 'Normalize integration events'
+          - update_check_read.ingest_pipeline._meta.purpose is not defined
+
+    - name: Partially update ingest pipeline
+      zupersero.elastic.ingest_pipeline:
+        name: phase1-pipeline-integration
+        description: Updated integration events
+        metadata:
+          purpose: attachment
+      register: update_result
+
+    - name: Assert ingest pipeline update preserves omitted state
+      ansible.builtin.assert:
+        that:
+          - update_result is changed
+          - update_result.status == 200
+          - update_result.ingest_pipeline.processors[0].set.field == 'event.kind'
+          - update_result.ingest_pipeline._meta.owner == 'integration'
+          - update_result.ingest_pipeline._meta.purpose == 'attachment'
+
+    - name: Reconcile partial ingest pipeline update
+      zupersero.elastic.ingest_pipeline:
+        name: phase1-pipeline-integration
+        description: Updated integration events
+        metadata:
+          purpose: attachment
+      register: update_idempotent
+
+    - name: Assert updated ingest pipeline is unchanged
+      ansible.builtin.assert:
+        that:
+          - update_idempotent is not changed
+
+    - name: Predict authoritative ingest pipeline replacement
+      zupersero.elastic.ingest_pipeline:
+        name: phase1-pipeline-integration
+        replace: true
+        processors:
+          - drop: {}
+        metadata: {}
+      check_mode: true
+      diff: true
+      register: replace_check
+
+    - name: Assert predicted authoritative replacement
+      ansible.builtin.assert:
+        that:
+          - replace_check is changed
+          - replace_check.ingest_pipeline.processors[0].drop == {}
+          - replace_check.ingest_pipeline._meta == {}
+          - replace_check.ingest_pipeline.description is not defined
+
+    - name: Authoritatively replace ingest pipeline
+      zupersero.elastic.ingest_pipeline:
+        name: phase1-pipeline-integration
+        replace: true
+        processors:
+          - drop: {}
+        metadata: {}
+      register: replace_result
+
+    - name: Assert authoritative ingest pipeline replacement
+      ansible.builtin.assert:
+        that:
+          - replace_result is changed
+          - replace_result.status == 200
+          - replace_result.ingest_pipeline.processors[0].drop == {}
+
+    - name: Reconcile authoritative ingest pipeline replacement
+      zupersero.elastic.ingest_pipeline:
+        name: phase1-pipeline-integration
+        replace: true
+        processors:
+          - drop: {}
+        metadata: {}
+      register: replace_idempotent
+
+    - name: Assert replaced ingest pipeline is unchanged
+      ansible.builtin.assert:
+        that:
+          - replace_idempotent is not changed
+
+    - name: Predict ingest pipeline deletion
+      zupersero.elastic.ingest_pipeline:
+        name: phase1-pipeline-integration
+        state: absent
+      check_mode: true
+      register: delete_check
+
+    - name: Assert predicted ingest pipeline deletion
+      ansible.builtin.assert:
+        that:
+          - delete_check is changed
+          - delete_check.ingest_pipeline.name == 'phase1-pipeline-integration'
+
+    - name: Delete ingest pipeline
+      zupersero.elastic.ingest_pipeline:
+        name: phase1-pipeline-integration
+        state: absent
+      register: delete_result
+
+    - name: Assert ingest pipeline deletion
+      ansible.builtin.assert:
+        that:
+          - delete_result is changed
+          - delete_result.status == 200
+
+    - name: Delete missing ingest pipeline
+      zupersero.elastic.ingest_pipeline:
+        name: phase1-pipeline-integration
+        state: absent
+      register: delete_idempotent
+
+    - name: Assert missing ingest pipeline deletion is unchanged
+      ansible.builtin.assert:
+        that:
+          - delete_idempotent is not changed
+          - delete_idempotent.status == 404
+          - delete_idempotent.ingest_pipeline is none
+
+  always:
+    - name: Cleanup ingest pipeline
+      zupersero.elastic.ingest_pipeline:
+        name: phase1-pipeline-integration
+        state: absent
+      failed_when: false

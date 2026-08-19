@@ -34,6 +34,16 @@ ELASTICSEARCH_VALIDATE_CERTS
 For AWX or Automation Controller, inject these variables through a custom
 credential type and mark passwords and API keys as secret.
 
+All Elasticsearch API modules belong to the `zupersero.elastic.elasticsearch`
+module-defaults group:
+
+```yaml
+module_defaults:
+  group/zupersero.elastic.elasticsearch:
+    url: https://elasticsearch.example.com:9200
+    api_key: "{{ elasticsearch_api_key }}"
+```
+
 ## Development
 
 ```sh
@@ -63,6 +73,12 @@ See `roles/elasticsearch/README.md` for role usage and
 - `zupersero.elastic.index_lifecycle_policy` manages ILM phase policies with
   preservation-aware partial updates, authoritative replacement, check mode,
   and diff mode.
+- `zupersero.elastic.ingest_pipeline` manages ingest pipelines with arbitrary
+  processor definitions, preservation-aware partial updates, authoritative
+  replacement, check mode, and diff mode.
+- `zupersero.elastic.enrich_policy` manages match, range, and geo-match enrich
+  policies with preservation-aware updates, authoritative replacement, and an
+  explicit execution action.
 - `zupersero.elastic.index` manages index creation, dynamic settings, mappings,
   read outcomes, and deletion with check and diff mode support.
 - `zupersero.elastic.elasticsearch_object` manages arbitrary idempotent API

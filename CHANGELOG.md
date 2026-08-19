@@ -15,6 +15,14 @@
   with phase-envelope validation, preservation-aware partial updates,
   authoritative replacement, current-state returns, check and diff mode, and
   complete live lifecycle coverage.
+- Add typed `ingest_pipeline` management and reusable pipeline service with
+  arbitrary processor definitions, preservation-aware partial updates,
+  authoritative replacement, current-state returns, check and diff mode, and
+  complete live lifecycle coverage.
+- Add typed `enrich_policy` management and reusable enrich service with
+  match/range/geo-match validation, preservation-aware partial updates,
+  authoritative replacement, explicit execution, check mode, and sanitized
+  errors.
 - Add typed lifecycle policy and rollover-alias attachment to composable index
   templates, including explicit detachment and data-stream validation.
 - Add typed `data_stream` and `data_stream_lifecycle` modules backed by

@@ -1,0 +1,155 @@
+---
+- name: Test Elasticsearch enrich policy management
+  module_defaults:
+    zupersero.elastic.enrich_policy:
+      url: http://127.0.0.1:9200
+      username: elastic
+      password: changeme
+  block:
+    - name: Create source index
+      ansible.builtin.uri:
+        url: http://127.0.0.1:9200/phase1-enrich-source
+        user: elastic
+        password: changeme
+        force_basic_auth: true
+        method: PUT
+        status_code: [200, 400]
+
+    - name: Add source document
+      ansible.builtin.uri:
+        url: http://127.0.0.1:9200/phase1-enrich-source/_doc/1?refresh=true
+        user: elastic
+        password: changeme
+        force_basic_auth: true
+        method: PUT
+        body_format: json
+        body:
+          company_id: acme
+          company_name: Acme Corporation
+        status_code: [200, 201]
+
+    - name: Predict enrich policy creation
+      zupersero.elastic.enrich_policy:
+        name: phase1-enrich-policy
+        policy_type: match
+        source_indices: [phase1-enrich-source]
+        match_field: company_id
+        enrich_fields: [company_name]
+      check_mode: true
+      diff: true
+      register: create_check
+
+    - name: Assert predicted enrich policy creation
+      ansible.builtin.assert:
+        that:
+          - create_check is changed
+          - create_check.status == 200
+          - create_check.enrich_policy.name == 'phase1-enrich-policy'
+          - create_check.enrich_policy.policy_type == 'match'
+
+    - name: Create enrich policy
+      zupersero.elastic.enrich_policy:
+        name: phase1-enrich-policy
+        policy_type: match
+        source_indices: [phase1-enrich-source]
+        match_field: company_id
+        enrich_fields: [company_name]
+      register: create_result
+
+    - name: Assert enrich policy creation
+      ansible.builtin.assert:
+        that:
+          - create_result is changed
+          - create_result.status == 200
+          - create_result.enrich_policy.name == 'phase1-enrich-policy'
+
+    - name: Reconcile enrich policy idempotently
+      zupersero.elastic.enrich_policy:
+        name: phase1-enrich-policy
+        policy_type: match
+        source_indices: [phase1-enrich-source]
+        match_field: company_id
+        enrich_fields: [company_name]
+      register: create_idempotent
+
+    - name: Assert enrich policy is unchanged
+      ansible.builtin.assert:
+        that:
+          - create_idempotent is not changed
+
+    - name: Preview enrich policy execution
+      zupersero.elastic.enrich_policy:
+        name: phase1-enrich-policy
+        execute: true
+      check_mode: true
+      register: execute_check
+
+    - name: Assert execution check mode is non-mutating
+      ansible.builtin.assert:
+        that:
+          - execute_check is changed
+          - execute_check.execution.would_execute
+
+    - name: Execute enrich policy explicitly
+      zupersero.elastic.enrich_policy:
+        name: phase1-enrich-policy
+        execute: true
+      register: execute_result
+
+    - name: Assert enrich policy execution
+      ansible.builtin.assert:
+        that:
+          - execute_result is changed
+          - execute_result.status in [200, 202]
+
+    - name: Preview enrich policy deletion
+      zupersero.elastic.enrich_policy:
+        name: phase1-enrich-policy
+        state: absent
+      check_mode: true
+      register: delete_check
+
+    - name: Assert enrich policy deletion check mode
+      ansible.builtin.assert:
+        that:
+          - delete_check is changed
+          - delete_check.enrich_policy.name == 'phase1-enrich-policy'
+
+    - name: Delete enrich policy
+      zupersero.elastic.enrich_policy:
+        name: phase1-enrich-policy
+        state: absent
+      register: delete_result
+
+    - name: Assert enrich policy deletion
+      ansible.builtin.assert:
+        that:
+          - delete_result is changed
+          - delete_result.status == 200
+
+    - name: Delete enrich policy again
+      zupersero.elastic.enrich_policy:
+        name: phase1-enrich-policy
+        state: absent
+      register: delete_idempotent
+
+    - name: Assert repeated deletion is unchanged
+      ansible.builtin.assert:
+        that:
+          - delete_idempotent is not changed
+  always:
+    - name: Clean up enrich policy
+      zupersero.elastic.enrich_policy:
+        name: phase1-enrich-policy
+        state: absent
+      failed_when: false
+
+    - name: Clean up source index
+      ansible.builtin.uri:
+        url: http://127.0.0.1:9200/phase1-enrich-source
+        user: elastic
+        password: changeme
+        force_basic_auth: true
+        method: DELETE
+        status_code: [200, 404]
+      failed_when: false

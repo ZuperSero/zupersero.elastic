@@ -3,8 +3,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 from .data_stream import DataStreamLifecycleService, DataStreamService
+from .enrich import EnrichPolicyService
 from .index import IndexService
 from .lifecycle import LifecycleService
+from .pipeline import PipelineService
 from .role import RoleService
 from .template import ComponentTemplateService, IndexTemplateService, TemplateService
 from .user import UserService
@@ -13,9 +15,11 @@ __all__ = [
     "ComponentTemplateService",
     "DataStreamLifecycleService",
     "DataStreamService",
+    "EnrichPolicyService",
     "IndexService",
     "IndexTemplateService",
     "LifecycleService",
+    "PipelineService",
     "RoleService",
     "TemplateService",
     "UserService",

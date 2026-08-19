@@ -17,6 +17,8 @@ ansible-test integration
 # Individual targets
 ansible-test integration user
 ansible-test integration user_role
+ansible-test integration enrich_policy
+ansible-test integration ingest_pipeline
 ```
 
 Targets live under `tests/integration/targets/<module_name>/`. Each contains
