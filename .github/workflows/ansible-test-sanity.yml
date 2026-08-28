@@ -20,7 +20,8 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                python: ["3.11"]
+                # Keep this list aligned with the integration workflow.
+                python: ["3.11", "3.12", "3.13"]
                 ansible_core: ["v2.19.5"]
         steps:
             - uses: actions/checkout@v4

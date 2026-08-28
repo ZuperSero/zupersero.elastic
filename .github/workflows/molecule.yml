@@ -11,35 +11,23 @@ on:
             - '.github/workflows/molecule.yml'
 
 jobs:
-    # First job: discover all scenarios
-    discover-scenarios:
-        runs-on: ubuntu-latest
-        outputs:
-            scenarios: ${{ steps.set-scenarios.outputs.scenarios }}
-        steps:
-            - uses: actions/checkout@v4
-
-            - name: Discover Molecule scenarios
-              id: set-scenarios
-              run: |
-                  scenarios=$(ls -1 extensions/molecule | jq -R -s -c 'split("\n")[:-1]')
-                  echo "scenarios=$scenarios" >> $GITHUB_OUTPUT
-
-    # Second job: run tests in matrix
+    # Keep scenario, Stack, and Python lists easy to edit as coverage evolves.
     molecule:
-        needs: discover-scenarios
         runs-on: ubuntu-latest
         strategy:
             matrix:
-                scenario: ${{ fromJson(needs.discover-scenarios.outputs.scenarios) }}
+                scenario: ["elasticsearch", "elastic_agent"]
+                elastic: ["9.2.0", "9.4.0", "9.5.0"]
+                python: ["3.11", "3.12", "3.13"]
             fail-fast: false
+            max-parallel: 1
         steps:
             - uses: actions/checkout@v4
 
             - name: Set up Python
               uses: actions/setup-python@v5
               with:
-                  python-version: "3.12"
+                  python-version: ${{ matrix.python }}
 
             - name: Install dependencies
               run: |
@@ -58,3 +46,11 @@ jobs:
               working-directory: extensions
               env:
                   ANSIBLE_FORKS: "1"
+                  ELASTICSEARCH_VERSION: ${{ matrix.elastic }}
+                  MOLECULE_SCENARIO: ${{ matrix.scenario }}
+            - name: Clean up Docker resources
+              if: always()
+              run: |
+                  docker ps -aq | xargs -r docker rm -f
+                  docker network prune -f
+                  docker volume prune -f

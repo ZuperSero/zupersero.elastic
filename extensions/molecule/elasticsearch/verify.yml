@@ -2,6 +2,8 @@
 - name: Verify
   hosts: molecule
   gather_facts: false
+  vars:
+    elasticsearch_molecule_version: "{{ lookup('ansible.builtin.env', 'ELASTICSEARCH_VERSION') | default('9.2.1', true) }}"
   tasks:
     - name: Gather package facts
       ansible.builtin.package_facts:
@@ -92,7 +94,7 @@
       ansible.builtin.assert:
         that:
           - elasticsearch_health.json.cluster_name == "my_cluster"
-          - elasticsearch_health.json.version.number == "9.2.1"
+          - elasticsearch_health.json.version.number is version(elasticsearch_molecule_version, '>=')
 
     - name: Verify cluster health is at least yellow
       ansible.builtin.uri:

@@ -4,7 +4,7 @@
   gather_facts: true
   vars:
     elastic_agent_mock_dir: /tmp/elastic-agent-mock
-    elastic_agent_mock_version: 9.2.0
+    elastic_agent_mock_version: "{{ lookup('ansible.builtin.env', 'ELASTICSEARCH_VERSION') | default('9.2.0', true) }}"
     elastic_agent_mock_arch: x86_64
     elastic_agent_mock_name: "elastic-agent-{{ elastic_agent_mock_version }}-linux-{{ elastic_agent_mock_arch }}"
   tasks:

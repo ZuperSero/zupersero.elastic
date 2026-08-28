@@ -21,10 +21,12 @@ jobs:
 
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
-        elastic: ["9.2.0"]
-        ansible_core: ["v2.19.5"]
-        python_version: ["3.11"]
+        # Keep these lists easy to edit as supported Stack versions evolve.
+        elastic: ["9.2.0", "9.4.0", "9.5.0"]
+        ansible_core: ["2.19.5"]
+        python_version: ["3.11", "3.12", "3.13"]
     steps:
       - name: Get elasticsearch
         run: curl -fsSL https://elastic.co/start-local | ES_LOCAL_PASSWORD="changeme" sh -s -- -v ${{ matrix.elastic }}
@@ -82,3 +84,7 @@ jobs:
           format: markdown
           output: both
           badge: true
+      - name: Clean up Elasticsearch
+        if: always()
+        run: |
+          docker ps -aq | xargs -r docker rm -f

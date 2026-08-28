@@ -36,7 +36,28 @@ integration:
     .venv/bin/ansible-test coverage report --include 'plugins/*'
 
 integration_act:
-    act push -W .github/workflows/ansible-test-integration.yml -P ubuntu-latest=ghcr.io/catthehacker/ubuntu:full-22.04 --container-options "--privileged --network host --user 0:0"
+    # Set ACT_JOB to select a single workflow job; the workflow serializes its matrix.
+    act push -W .github/workflows/ansible-test-integration.yml \
+        -P ubuntu-latest=ghcr.io/catthehacker/ubuntu:full-22.04 \
+        --container-options "--privileged --network host --user 0:0" \
+        ${ACT_JOB:+-j "$ACT_JOB"}
+
+molecule_act:
+    act push -W .github/workflows/molecule.yml \
+        -P ubuntu-latest=ghcr.io/catthehacker/ubuntu:full-22.04 \
+        --container-options "--privileged --network host --user 0:0" \
+        ${ACT_JOB:+-j "$ACT_JOB"}
+
+unit_act:
+    act push -W .github/workflows/ansible-test-units.yml \
+        -P ubuntu-latest=ghcr.io/catthehacker/ubuntu:full-22.04 \
+        --container-options "--privileged --network host --user 0:0" \
+        ${ACT_JOB:+-j "$ACT_JOB"}
+
+act-dry-run:
+    act push -W .github/workflows/ansible-test-units.yml -W .github/workflows/ansible-test-sanity.yml -W .github/workflows/ansible-test-integration.yml -W .github/workflows/molecule.yml -P ubuntu-latest=ghcr.io/catthehacker/ubuntu:full-22.04 --dryrun
+
+ci_act: integration_act molecule_act unit_act
 
 elastic:
     #!/usr/bin/env bash
