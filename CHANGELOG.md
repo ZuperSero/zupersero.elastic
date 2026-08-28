@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add guarded GitHub Release automation that builds and publishes matching
+  collection versions to Ansible Galaxy.
 - Add shared Phase 0 API client foundations and generic object, request, and
   information modules.
 - Add the typed `index` module and reusable index service with idempotent

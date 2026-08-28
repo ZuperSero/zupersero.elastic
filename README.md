@@ -57,6 +57,22 @@ just molecule
 See `roles/elasticsearch/README.md` for role usage and
 `tests/integration/README.md` for integration-test prerequisites.
 
+## Releases
+
+Releases are published to Ansible Galaxy by GitHub Actions when a published,
+non-prerelease GitHub Release uses a tag matching the `version` in `galaxy.yml`
+(for example, `1.0.0`). To release this collection:
+
+1. Update the `version` in `galaxy.yml` and commit the change.
+2. Push the commit and create a GitHub Release using the matching version tag.
+3. Confirm that the release workflow builds and imports the collection at
+   [Ansible Galaxy](https://galaxy.ansible.com/).
+
+The repository must have a `GALAXY_API_KEY` secret with permission to publish
+the `zupersero.elastic` namespace. The workflow only requests read access to
+repository contents and intentionally skips prereleases. Do not reuse a
+published version; Galaxy rejects duplicate collection versions.
+
 ## API modules
 
 - `zupersero.elastic.data_stream` manages data stream creation, reads, and
