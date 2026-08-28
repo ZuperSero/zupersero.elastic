@@ -1,0 +1,6 @@
+---
+- name: Install and configure Elasticsearch
+  hosts: elasticsearch
+  become: true
+  roles:
+    - role: zupersero.elastic.elasticsearch

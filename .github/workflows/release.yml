@@ -6,7 +6,7 @@ on:
     types: [published]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: galaxy-release-${{ github.repository }}-${{ github.event.release.tag_name }}
@@ -90,3 +90,8 @@ jobs:
         run: |
           echo "GALAXY_API_KEY repository secret is required to publish releases." >&2
           exit 1
+
+      - name: Attach collection artifact to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${RELEASE_TAG}" "${COLLECTION_ARTIFACT}" --repo "${GITHUB_REPOSITORY}" --clobber

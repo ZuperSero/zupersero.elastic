@@ -3,9 +3,15 @@
 [![Molecule Tests](https://github.com/ZuperSero/zupersero.elastic/actions/workflows/molecule.yml/badge.svg?branch=main)](https://github.com/ZuperSero/zupersero.elastic/actions/workflows/molecule.yml)
 [![Integration Tests](https://github.com/ZuperSero/zupersero.elastic/actions/workflows/ansible-test-integration.yml/badge.svg?branch=main)](https://github.com/ZuperSero/zupersero.elastic/actions/workflows/ansible-test-integration.yml)
 [![Sanity Tests](https://github.com/ZuperSero/zupersero.elastic/actions/workflows/ansible-test-sanity.yml/badge.svg?branch=main)](https://github.com/ZuperSero/zupersero.elastic/actions/workflows/ansible-test-sanity.yml)
+[![Unit Tests](https://github.com/ZuperSero/zupersero.elastic/actions/workflows/ansible-test-units.yml/badge.svg?branch=main)](https://github.com/ZuperSero/zupersero.elastic/actions/workflows/ansible-test-units.yml)
 
 An Ansible collection for installing, configuring, and managing Elasticsearch.
 Kibana roles and API modules live in the separate `zupersero.kibana` collection.
+
+Also check out my other collections:
+[zupersero.kibana](https://github.com/ZuperSero/zupersero.kibana) for Kibana and
+Fleet management, and [zupersero.tailscale](https://github.com/ZuperSero/zupersero.tailscale)
+for Tailscale automation.
 
 ## Installation
 
@@ -44,63 +50,33 @@ module_defaults:
     api_key: "{{ elasticsearch_api_key }}"
 ```
 
-## Development
+## Examples
 
-```sh
-just init
-just ruff
-just sanity
-just integration
-just molecule
-```
-
-See `roles/elasticsearch/README.md` for role usage and
-`tests/integration/README.md` for integration-test prerequisites.
+See the [examples directory](examples/) for ready-to-adapt playbooks. The
+collection also includes detailed examples on each module's documentation page.
 
 ## Releases
 
-Releases are published to Ansible Galaxy by GitHub Actions when a published,
-non-prerelease GitHub Release uses a tag matching the `version` in `galaxy.yml`
-(for example, `1.0.0`). To release this collection:
+See the latest published versions on [Ansible Galaxy](https://galaxy.ansible.com/ui/repo/published/zupersero/elastic/)
+or browse the [GitHub releases](https://github.com/ZuperSero/zupersero.elastic/releases).
 
-1. Update the `version` in `galaxy.yml` and commit the change.
-2. Push the commit and create a GitHub Release using the matching version tag.
-3. Confirm that the release workflow builds and imports the collection at
-   [Ansible Galaxy](https://galaxy.ansible.com/).
+## Development
 
-The repository must have a `GALAXY_API_KEY` secret with permission to publish
-the `zupersero.elastic` namespace. The workflow only requests read access to
-repository contents and intentionally skips prereleases. Do not reuse a
-published version; Galaxy rejects duplicate collection versions.
+To get a local environment ready, install [uv](https://docs.astral.sh/uv/)
+first, then run `just init`. It creates the collection's Python virtual
+environment and installs the tooling needed to run checks and examples.
 
-## API modules
+```sh
+just init
+```
 
-- `zupersero.elastic.data_stream` manages data stream creation, reads, and
-  deletion independently of lifecycle attachment.
-- `zupersero.elastic.data_stream_lifecycle` manages typed retention and
-  downsampling configuration on existing data streams, including partial
-  preservation, authoritative replacement, explicit clearing, and detachment.
-- `zupersero.elastic.component_template` manages reusable composable-template
-  settings, mappings, aliases, metadata, versions, and deprecation state.
-- `zupersero.elastic.index_template` manages composable index templates,
-  including patterns, ordered component composition, direct template content,
-  data-stream options, typed lifecycle policy attachment, priority, and
-  auto-creation behavior.
-- `zupersero.elastic.index_lifecycle_policy` manages ILM phase policies with
-  preservation-aware partial updates, authoritative replacement, check mode,
-  and diff mode.
-- `zupersero.elastic.ingest_pipeline` manages ingest pipelines with arbitrary
-  processor definitions, preservation-aware partial updates, authoritative
-  replacement, check mode, and diff mode.
-- `zupersero.elastic.enrich_policy` manages match, range, and geo-match enrich
-  policies with preservation-aware updates, authoritative replacement, and an
-  explicit execution action.
-- `zupersero.elastic.index` manages index creation, dynamic settings, mappings,
-  read outcomes, and deletion with check and diff mode support.
-- `zupersero.elastic.elasticsearch_object` manages arbitrary idempotent API
-  objects when no typed module exists.
-- `zupersero.elastic.elasticsearch_request` executes explicit API actions.
-- `zupersero.elastic.elasticsearch_info` reads arbitrary API information.
+## API reference
+
+The [Ansible Galaxy collection page](https://galaxy.ansible.com/ui/repo/published/zupersero/elastic/)
+and generated documentation contain the complete module and role reference.
+Start with the examples above for common tasks, or use
+`zupersero.elastic.elasticsearch_object` when a typed module is not available
+for an API resource.
 
 Template modules preserve omitted existing fields during normal updates. Set
 `replace: true` when declaring the complete desired template and clearing

@@ -1,0 +1,22 @@
+---
+- name: Manage composable templates
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  module_defaults:
+    group/zupersero.elastic.elasticsearch:
+      url: "{{ elasticsearch_url }}"
+      api_key: "{{ elasticsearch_api_key }}"
+  tasks:
+    - name: Define an index template
+      zupersero.elastic.index_template:
+        name: application-events
+        index_patterns:
+          - application-events-*
+        template:
+          settings:
+            number_of_shards: 1
+          mappings:
+            properties:
+              service:
+                type: keyword
