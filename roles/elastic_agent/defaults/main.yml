@@ -25,6 +25,7 @@ elastic_agent_artifact_checksum: ""
 
 elastic_agent_api_delegate: localhost
 elastic_agent_download_dir: "/tmp"
+elastic_agent_cleanup_extract_dir: true
 elastic_agent_install_base_path: "/opt"
 elastic_agent_binary_path: "/opt/Elastic/Agent/elastic-agent"
 elastic_agent_service_name: "elastic-agent"

@@ -2,8 +2,8 @@
 elastic_agent_architecture_map:
   x86_64: x86_64
   amd64: x86_64
-  aarch64: aarch64
-  arm64: aarch64
+  aarch64: arm64
+  arm64: arm64
 
 elastic_agent_resolved_architecture: "{{ elastic_agent_architecture_map.get(ansible_facts.architecture, '') }}"
 elastic_agent_effective_version: "{{ _elastic_agent_auto_version if elastic_agent_version == 'auto' else elastic_agent_version }}"

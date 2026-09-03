@@ -29,6 +29,8 @@ Role Variables
 | `elastic_agent_ca_sha256` | `""` | CA SHA256 fingerprint passed to Elastic Agent install |
 | `elastic_agent_insecure` | `false` | Pass `--insecure` to Elastic Agent install |
 | `elastic_agent_artifact_url` | `""` | Override tarball URL |
+| `elastic_agent_download_dir` | `/tmp` | Remote staging directory for the downloaded archive and extracted installer. Set this to a filesystem with enough free space if `/tmp` is small |
+| `elastic_agent_cleanup_extract_dir` | `true` | Remove the extracted installer directory after install attempts |
 
 Dependencies
 ------------
