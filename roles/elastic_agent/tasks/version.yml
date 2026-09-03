@@ -1,0 +1,27 @@
+---
+- name: Query Elasticsearch version for auto Elastic Agent version
+  ansible.builtin.uri:
+    url: "{{ elastic_agent_elasticsearch_url.rstrip('/') }}/"
+    method: GET
+    user: "{{ elastic_agent_elasticsearch_username | default(omit, true) }}"
+    password: "{{ elastic_agent_elasticsearch_password | default(omit, true) }}"
+    force_basic_auth: "{{ elastic_agent_elasticsearch_api_key | length == 0 }}"
+    headers: "{{ {'Authorization': 'ApiKey ' + elastic_agent_elasticsearch_api_key} if elastic_agent_elasticsearch_api_key | length > 0 else {} }}"
+    validate_certs: "{{ elastic_agent_validate_certs }}"
+    return_content: true
+    status_code: 200
+  register: _elastic_agent_elasticsearch_root
+  no_log: false
+  delegate_to: "{{ elastic_agent_api_delegate }}"
+  when: elastic_agent_version == "auto"
+
+- name: Set auto Elastic Agent version
+  ansible.builtin.set_fact:
+    _elastic_agent_auto_version: "{{ _elastic_agent_elasticsearch_root.json.version.number }}"
+  when: elastic_agent_version == "auto"
+
+- name: Validate resolved Elastic Agent version
+  ansible.builtin.assert:
+    that:
+      - elastic_agent_effective_version is match('^[0-9]+\\.[0-9]+\\.[0-9]+')
+    fail_msg: "Elastic Agent version must resolve to a semantic version like 9.2.1."

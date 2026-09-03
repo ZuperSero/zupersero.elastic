@@ -1,0 +1,232 @@
+---
+- name: Test Elasticsearch index management
+  module_defaults:
+    zupersero.elastic.index:
+      url: http://127.0.0.1:9200
+      username: elastic
+      password: changeme
+  block:
+    - name: Predict index creation
+      zupersero.elastic.index:
+        name: phase1-index-integration
+        settings:
+          number_of_shards: 1
+          number_of_replicas: 0
+          refresh_interval: 1s
+        mappings:
+          properties:
+            phase:
+              type: keyword
+            count:
+              type: integer
+      check_mode: true
+      diff: true
+      register: create_check
+
+    - name: Assert predicted index creation
+      ansible.builtin.assert:
+        that:
+          - create_check is changed
+          - create_check.status == 404
+          - create_check.index.name == 'phase1-index-integration'
+          - create_check.diff.before == {}
+          - create_check.diff.after.settings.number_of_shards == 1
+
+    - name: Create index
+      zupersero.elastic.index:
+        name: phase1-index-integration
+        settings:
+          number_of_shards: 1
+          number_of_replicas: 0
+          refresh_interval: 1s
+        mappings:
+          properties:
+            phase:
+              type: keyword
+            count:
+              type: integer
+      diff: true
+      register: create_result
+
+    - name: Assert index creation
+      ansible.builtin.assert:
+        that:
+          - create_result is changed
+          - create_result.status == 200
+          - create_result.index.name == 'phase1-index-integration'
+          - create_result.index.settings.index.number_of_shards == '1'
+          - create_result.index.settings.index.number_of_replicas == '0'
+          - create_result.index.mappings.properties.phase.type == 'keyword'
+          - create_result.index.mappings.properties.count.type == 'integer'
+
+    - name: Reconcile created index
+      zupersero.elastic.index:
+        name: phase1-index-integration
+        settings:
+          number_of_shards: 1
+          number_of_replicas: 0
+          refresh_interval: 1s
+        mappings:
+          properties:
+            phase:
+              type: keyword
+            count:
+              type: integer
+      diff: true
+      register: create_idempotent
+
+    - name: Assert created index is unchanged
+      ansible.builtin.assert:
+        that:
+          - create_idempotent is not changed
+          - create_idempotent.diff.before == create_idempotent.diff.after
+
+    - name: Predict dynamic settings and mapping update
+      zupersero.elastic.index:
+        name: phase1-index-integration
+        settings:
+          number_of_shards: 1
+          number_of_replicas: 0
+          refresh_interval: 5s
+        mappings:
+          properties:
+            phase:
+              type: keyword
+            count:
+              type: integer
+            description:
+              type: text
+      check_mode: true
+      diff: true
+      register: update_check
+
+    - name: Assert predicted index update
+      ansible.builtin.assert:
+        that:
+          - update_check is changed
+          - update_check.diff.before.settings.refresh_interval == '1s'
+          - update_check.diff.after.settings.refresh_interval == '5s'
+          - update_check.diff.after.mappings.properties.description.type == 'text'
+
+    - name: Read index after check mode
+      zupersero.elastic.index:
+        name: phase1-index-integration
+      register: check_mode_read
+
+    - name: Assert check mode did not mutate the index
+      ansible.builtin.assert:
+        that:
+          - check_mode_read is not changed
+          - check_mode_read.index.settings.index.refresh_interval == '1s'
+          - check_mode_read.index.mappings.properties.description is not defined
+
+    - name: Partially update dynamic settings and mappings
+      zupersero.elastic.index:
+        name: phase1-index-integration
+        settings:
+          refresh_interval: 5s
+        mappings:
+          properties:
+            description:
+              type: text
+      diff: true
+      register: update_result
+
+    - name: Assert index update
+      ansible.builtin.assert:
+        that:
+          - update_result is changed
+          - update_result.status == 200
+          - update_result.index.settings.index.refresh_interval == '5s'
+          - update_result.index.settings.index.number_of_shards == '1'
+          - update_result.index.settings.index.number_of_replicas == '0'
+          - update_result.index.mappings.properties.description.type == 'text'
+          - update_result.index.mappings.properties.phase.type == 'keyword'
+          - update_result.index.mappings.properties.count.type == 'integer'
+
+    - name: Reconcile updated index
+      zupersero.elastic.index:
+        name: phase1-index-integration
+        settings:
+          number_of_shards: 1
+          number_of_replicas: 0
+          refresh_interval: 5s
+        mappings:
+          properties:
+            phase:
+              type: keyword
+            count:
+              type: integer
+            description:
+              type: text
+      diff: true
+      register: update_idempotent
+
+    - name: Assert updated index is unchanged
+      ansible.builtin.assert:
+        that:
+          - update_idempotent is not changed
+          - update_idempotent.diff.before == update_idempotent.diff.after
+
+    - name: Read managed index outcome
+      zupersero.elastic.index:
+        name: phase1-index-integration
+      register: read_result
+
+    - name: Assert managed index read outcome
+      ansible.builtin.assert:
+        that:
+          - read_result is not changed
+          - read_result.status == 200
+          - read_result.index.name == 'phase1-index-integration'
+          - read_result.index.settings.index.refresh_interval == '5s'
+          - read_result.index.mappings.properties.description.type == 'text'
+
+    - name: Predict index deletion
+      zupersero.elastic.index:
+        name: phase1-index-integration
+        state: absent
+      check_mode: true
+      diff: true
+      register: delete_check
+
+    - name: Assert predicted index deletion
+      ansible.builtin.assert:
+        that:
+          - delete_check is changed
+          - delete_check.index.name == 'phase1-index-integration'
+          - delete_check.diff.after == {}
+
+    - name: Delete index
+      zupersero.elastic.index:
+        name: phase1-index-integration
+        state: absent
+      diff: true
+      register: delete_result
+
+    - name: Assert index deletion
+      ansible.builtin.assert:
+        that:
+          - delete_result is changed
+          - delete_result.status == 200
+          - delete_result.index.name == 'phase1-index-integration'
+
+    - name: Delete missing index
+      zupersero.elastic.index:
+        name: phase1-index-integration
+        state: absent
+      register: delete_idempotent
+
+    - name: Assert missing index deletion is unchanged
+      ansible.builtin.assert:
+        that:
+          - delete_idempotent is not changed
+          - delete_idempotent.status == 404
+          - delete_idempotent.index is none
+
+  always:
+    - name: Cleanup managed index
+      zupersero.elastic.index:
+        name: phase1-index-integration
+        state: absent
+      failed_when: false

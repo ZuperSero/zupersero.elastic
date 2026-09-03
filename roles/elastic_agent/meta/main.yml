@@ -1,0 +1,103 @@
+---
+galaxy_info:
+  author: zupersero
+  description: Install and enroll Elastic Agent
+
+  license: GPL-3.0-or-later
+
+  min_ansible_version: "2.14"
+
+  platforms:
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+        - noble
+    - name: Fedora
+      versions:
+        - all
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+
+  galaxy_tags:
+    - elastic
+    - fleet
+    - elasticagent
+    - monitoring
+
+dependencies: []
+
+argument_specs:
+  main:
+    short_description: Install and enroll Elastic Agent
+    description:
+      - This role installs Elastic Agent from a Linux tarball and enrolls it into Fleet.
+      - Supports Debian and RedHat based systems with systemd.
+    options:
+      elastic_agent_version:
+        description: Elastic Agent version to install, or auto to use the Elasticsearch version.
+        type: str
+        default: auto
+      elastic_agent_fleet_url:
+        description: Fleet Server URL used by Elastic Agent enrollment.
+        type: str
+        required: true
+      elastic_agent_policy_id:
+        description: Fleet agent policy ID to enroll the host into.
+        type: str
+        required: true
+      elastic_agent_kibana_url:
+        description: Kibana URL used to look up or create Fleet enrollment API keys.
+        type: str
+        required: true
+      elastic_agent_kibana_username:
+        description: Kibana username for basic authentication.
+        type: str
+      elastic_agent_kibana_password:
+        description: Kibana password for basic authentication.
+        type: str
+      elastic_agent_kibana_api_key:
+        description: Kibana API key for authentication.
+        type: str
+      elastic_agent_elasticsearch_url:
+        description: Elasticsearch URL used when elastic_agent_version is auto.
+        type: str
+      elastic_agent_elasticsearch_username:
+        description: Elasticsearch username for basic authentication.
+        type: str
+      elastic_agent_elasticsearch_password:
+        description: Elasticsearch password for basic authentication.
+        type: str
+      elastic_agent_elasticsearch_api_key:
+        description: Elasticsearch API key for authentication.
+        type: str
+      elastic_agent_validate_certs:
+        description: Whether API requests should validate TLS certificates.
+        type: bool
+        default: true
+      elastic_agent_certificate_authorities:
+        description: Path to a CA file passed to elastic-agent install.
+        type: str
+        default: ""
+      elastic_agent_ca_sha256:
+        description: CA SHA256 fingerprint passed to elastic-agent install.
+        type: str
+        default: ""
+      elastic_agent_insecure:
+        description: Pass --insecure to elastic-agent install.
+        type: bool
+        default: false
+      elastic_agent_artifact_url:
+        description: Override URL for the Elastic Agent tarball.
+        type: str
+        default: ""
+      elastic_agent_artifact_checksum:
+        description: Optional checksum for the Elastic Agent tarball.
+        type: str
+        default: ""

@@ -1,0 +1,23 @@
+---
+elastic_agent_architecture_map:
+  x86_64: x86_64
+  amd64: x86_64
+  aarch64: arm64
+  arm64: arm64
+
+elastic_agent_resolved_architecture: "{{ elastic_agent_architecture_map.get(ansible_facts.architecture, '') }}"
+elastic_agent_effective_version: "{{ _elastic_agent_auto_version if elastic_agent_version == 'auto' else elastic_agent_version }}"
+elastic_agent_artifact_filename: "elastic-agent-{{ elastic_agent_effective_version }}-linux-{{ elastic_agent_resolved_architecture }}.tar.gz"
+elastic_agent_effective_artifact_url: >-
+  {{
+    elastic_agent_artifact_url
+    if elastic_agent_artifact_url | length > 0
+    else elastic_agent_download_base_url.rstrip('/') + '/' + elastic_agent_artifact_filename
+  }}
+elastic_agent_extract_dir: >-
+  {{
+    elastic_agent_download_dir + '/elastic-agent-' +
+    elastic_agent_effective_version + '-linux-' +
+    elastic_agent_resolved_architecture
+  }}
+elastic_agent_archive_path: "{{ elastic_agent_download_dir }}/{{ elastic_agent_artifact_filename }}"

@@ -1,0 +1,29 @@
+---
+- name: Configure Elasticsearch
+  ansible.builtin.copy:
+    dest: "{{ elasticsearch_path_conf }}/elasticsearch.yml"
+    content: |
+      {{ elasticsearch_config_content | to_nice_yaml(indent=2) }}
+    owner: "{{ elasticsearch_user }}"
+    group: "{{ elasticsearch_group }}"
+    mode: '0660'
+  notify: Restart Elasticsearch
+
+- name: Configure JVM options
+  ansible.builtin.copy:
+    dest: "{{ elasticsearch_path_conf }}/jvm.options.d/90-custom.options"
+    content: "{{ _elasticsearch_jvm_base_options }}"
+    owner: "{{ elasticsearch_user }}"
+    group: "{{ elasticsearch_group }}"
+    mode: '0660'
+  notify: Restart Elasticsearch
+
+- name: Configure JVM extra options
+  ansible.builtin.copy:
+    dest: "{{ elasticsearch_path_conf }}/jvm.options.d/99-custom-extra.options"
+    content: "{{ elasticsearch_jvm_extra_options }}"
+    owner: "{{ elasticsearch_user }}"
+    group: "{{ elasticsearch_group }}"
+    mode: '0660'
+  when: elasticsearch_jvm_extra_options | length > 0
+  notify: Restart Elasticsearch

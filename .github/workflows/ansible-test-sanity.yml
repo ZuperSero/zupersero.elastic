@@ -1,0 +1,34 @@
+name: Sanity Tests
+on:
+    pull_request:
+        branches: [main]
+        paths:
+            - 'plugins/**'
+            - 'roles/**'
+            - '.github/workflows/ansible-test-sanity.yml'
+
+    push:
+        branches: [dev]
+        paths:
+            - 'plugins/**'
+            - 'roles/**'
+            - '.github/workflows/ansible-test-sanity.yml'
+
+jobs:
+    ansible-test:
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                # Keep this list aligned with the integration workflow.
+                python: ["3.11", "3.12", "3.13"]
+                ansible_core: ["v2.19.5"]
+        steps:
+            - uses: actions/checkout@v4
+            - name: Run sanity tests (py ${{ matrix.python }})
+              uses: ansible-community/ansible-test-gh-action@release/v1
+              with:
+                  ansible-core-version: ${{ matrix.ansible_core }}
+                  testing-type: sanity
+                  target-python-version: ${{ matrix.python }}
+                  controller-python-version: auto

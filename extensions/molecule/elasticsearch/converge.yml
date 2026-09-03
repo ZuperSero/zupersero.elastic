@@ -1,0 +1,33 @@
+---
+- name: Converge
+  hosts: molecule
+  gather_facts: true
+  serial: 1
+  vars:
+    elasticsearch_molecule_version: "{{ lookup('ansible.builtin.env', 'ELASTICSEARCH_VERSION') | default('9.2.1', true) }}"
+  tasks:
+    - name: Apply elasticsearch role with bootstrap
+      ansible.builtin.include_role:
+        name: zupersero.elastic.elasticsearch
+      vars:
+        elasticsearch_version: "{{ elasticsearch_molecule_version }}"
+        elasticsearch_bootstrap: true
+        elasticsearch_jvm_heap_size: "512m"
+        elasticsearch_package_install_timeout: 900
+        elasticsearch_systemd_service_overrides: |
+          [Service]
+          Environment=ELASTICSEARCH_MOLECULE_TEST=enabled
+      tags:
+        - molecule-idempotence-notest
+
+    - name: Apply elasticsearch role without bootstrap
+      ansible.builtin.include_role:
+        name: zupersero.elastic.elasticsearch
+      vars:
+        elasticsearch_version: "{{ elasticsearch_molecule_version }}"
+        elasticsearch_bootstrap: false
+        elasticsearch_jvm_heap_size: "512m"
+        elasticsearch_package_install_timeout: 900
+        elasticsearch_systemd_service_overrides: |
+          [Service]
+          Environment=ELASTICSEARCH_MOLECULE_TEST=enabled

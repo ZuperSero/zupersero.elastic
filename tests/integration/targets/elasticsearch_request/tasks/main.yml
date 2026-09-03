@@ -1,0 +1,95 @@
+---
+- name: Test generic Elasticsearch requests
+  module_defaults:
+    zupersero.elastic.elasticsearch_request:
+      url: http://localhost:9200
+  block:
+    - name: Read cluster health
+      zupersero.elastic.elasticsearch_request:
+        username: elastic
+        password: changeme
+        path: _cluster/health
+        response_path: status
+      register: health_result
+
+    - name: Assert safe request result
+      ansible.builtin.assert:
+        that:
+          - health_result is not changed
+          - health_result.status == 200
+          - health_result.response in ['green', 'yellow', 'red']
+
+    - name: Predict refresh action
+      zupersero.elastic.elasticsearch_request:
+        username: elastic
+        password: changeme
+        path: _refresh
+        method: POST
+      check_mode: true
+      register: refresh_check
+
+    - name: Assert action is skipped in check mode
+      ansible.builtin.assert:
+        that:
+          - refresh_check is changed
+          - refresh_check.status is none
+          - refresh_check.response is none
+
+    - name: Refresh indices
+      zupersero.elastic.elasticsearch_request:
+        username: elastic
+        password: changeme
+        path: _refresh
+        method: POST
+      register: refresh_result
+
+    - name: Assert mutating request result
+      ansible.builtin.assert:
+        that:
+          - refresh_result is changed
+          - refresh_result.status == 200
+          - refresh_result.response._shards is defined
+
+    - name: Create API key fixture
+      ansible.builtin.uri:
+        url: http://localhost:9200/_security/api_key
+        method: POST
+        user: elastic
+        password: changeme
+        force_basic_auth: true
+        body_format: json
+        body:
+          name: phase0-elasticsearch-request
+        status_code: 200
+      register: api_key_fixture
+      no_log: true
+
+    - name: Read cluster health with API key authentication
+      zupersero.elastic.elasticsearch_request:
+        api_key: "{{ api_key_fixture.json.encoded }}"
+        path: _cluster/health
+        response_path: status
+      register: api_key_health
+
+    - name: Assert API key authentication
+      ansible.builtin.assert:
+        that:
+          - api_key_health is not changed
+          - api_key_health.status == 200
+          - api_key_health.response in ['green', 'yellow', 'red']
+
+  always:
+    - name: Invalidate API key fixture
+      zupersero.elastic.elasticsearch_request:
+        username: elastic
+        password: changeme
+        path: _security/api_key
+        method: DELETE
+        body:
+          ids:
+            - "{{ api_key_fixture.json.id }}"
+      when:
+        - api_key_fixture is defined
+        - api_key_fixture.json is defined
+        - api_key_fixture.json.id is defined
+      failed_when: false

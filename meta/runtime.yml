@@ -1,0 +1,18 @@
+---
+requires_ansible: ">=2.15.0"
+
+action_groups:
+  elasticsearch:
+    - zupersero.elastic.component_template
+    - zupersero.elastic.data_stream
+    - zupersero.elastic.data_stream_lifecycle
+    - zupersero.elastic.elasticsearch_info
+    - zupersero.elastic.elasticsearch_object
+    - zupersero.elastic.elasticsearch_request
+    - zupersero.elastic.enrich_policy
+    - zupersero.elastic.index
+    - zupersero.elastic.index_lifecycle_policy
+    - zupersero.elastic.index_template
+    - zupersero.elastic.ingest_pipeline
+    - zupersero.elastic.user
+    - zupersero.elastic.user_role

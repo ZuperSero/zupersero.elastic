@@ -1,0 +1,40 @@
+---
+- name: Get distrubution information
+  ansible.builtin.gather_facts:
+    gather_subset:
+      - distribution
+
+- name: Pre install tasks
+  ansible.builtin.include_tasks: "./pre_install/main.yml"
+  tags:
+    - pre_install
+
+- name: Install Elasticsearch
+  ansible.builtin.include_tasks: "./install/{{ ansible_facts.os_family | lower }}.yml"
+  tags:
+    - install
+
+- name: Bootstrap Elasticsearch
+  ansible.builtin.include_tasks: "./bootstrap/main.yml"
+  when: elasticsearch_bootstrap | default(false)
+
+- name: Configure Elasticsearch
+  ansible.builtin.include_tasks: "./configure/main.yml"
+  tags:
+    - configure
+
+- name: Configure Elasticsearch keystore
+  ansible.builtin.include_tasks: "./secure_settings/main.yml"
+  when: elasticsearch_config_content.xpack.security.enabled | default(false)
+  tags:
+    - configure
+    - configure_keystore
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Make sure Elasticsearch is started
+  ansible.builtin.service:
+    name: elasticsearch
+    state: started
+    enabled: true

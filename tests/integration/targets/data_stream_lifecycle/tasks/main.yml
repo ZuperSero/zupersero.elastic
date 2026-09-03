@@ -1,0 +1,375 @@
+---
+- name: Test Elasticsearch data stream lifecycle management
+  module_defaults:
+    zupersero.elastic.data_stream:
+      url: http://127.0.0.1:9200
+      username: elastic
+      password: changeme
+    zupersero.elastic.data_stream_lifecycle:
+      url: http://127.0.0.1:9200
+      username: elastic
+      password: changeme
+    zupersero.elastic.index_template:
+      url: http://127.0.0.1:9200
+      username: elastic
+      password: changeme
+  block:
+    - name: Remove stale lifecycle data stream fixture
+      zupersero.elastic.data_stream:
+        name: phase1-data-lifecycle-integration
+        state: absent
+
+    - name: Remove stale lifecycle template fixture
+      zupersero.elastic.index_template:
+        name: phase1-data-lifecycle-integration-template
+        state: absent
+
+    - name: Create lifecycle composable data stream template fixture
+      zupersero.elastic.index_template:
+        name: phase1-data-lifecycle-integration-template
+        index_patterns:
+          - phase1-data-lifecycle-integration*
+        settings:
+          number_of_replicas: 0
+        mappings:
+          properties:
+            '@timestamp':
+              type: date
+            event_id:
+              type: keyword
+        data_stream: {}
+
+    - name: Create lifecycle data stream fixture
+      zupersero.elastic.data_stream:
+        name: phase1-data-lifecycle-integration
+
+    - name: Verify lifecycle starts detached from the existing stream
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+        state: absent
+      register: initially_detached
+
+    - name: Assert stream existence is distinct from lifecycle attachment
+      ansible.builtin.assert:
+        that:
+          - initially_detached is not changed
+          - initially_detached.status == 200
+          - initially_detached.data_stream_exists
+          - initially_detached.data_stream_lifecycle is none
+          - initially_detached.global_retention is mapping
+
+    - name: Predict data stream lifecycle attachment
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+        enabled: true
+        data_retention: 7d
+        downsampling:
+          - after: 1d
+            fixed_interval: 1h
+      check_mode: true
+      diff: true
+      register: attach_check
+
+    - name: Assert predicted lifecycle attachment
+      ansible.builtin.assert:
+        that:
+          - attach_check is changed
+          - attach_check.data_stream_exists
+          - attach_check.data_stream_lifecycle.name == 'phase1-data-lifecycle-integration'
+          - attach_check.data_stream_lifecycle.enabled
+          - attach_check.data_stream_lifecycle.data_retention == '7d'
+          - attach_check.data_stream_lifecycle.downsampling[0].after == '1d'
+          - attach_check.diff.before == {}
+
+    - name: Verify attachment check mode did not attach lifecycle
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+        state: absent
+      register: attach_check_read
+
+    - name: Assert lifecycle remains detached after attachment check mode
+      ansible.builtin.assert:
+        that:
+          - attach_check_read is not changed
+          - attach_check_read.data_stream_exists
+          - attach_check_read.data_stream_lifecycle is none
+
+    - name: Attach data stream lifecycle
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+        enabled: true
+        data_retention: 7d
+        downsampling:
+          - after: 1d
+            fixed_interval: 1h
+      diff: true
+      register: attach_result
+
+    - name: Assert lifecycle attachment and normalized response
+      ansible.builtin.assert:
+        that:
+          - attach_result is changed
+          - attach_result.status == 200
+          - attach_result.data_stream_exists
+          - attach_result.data_stream_lifecycle.enabled
+          - attach_result.data_stream_lifecycle.data_retention == '7d'
+          - attach_result.data_stream_lifecycle.effective_retention == '7d'
+          - attach_result.data_stream_lifecycle.retention_determined_by == 'data_stream_configuration'
+          - attach_result.data_stream_lifecycle.downsampling == [{'after':'1d','fixed_interval':'1h'}]
+          - attach_result.global_retention is mapping
+
+    - name: Reconcile attached data stream lifecycle
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+        enabled: true
+        data_retention: 7d
+        downsampling:
+          - after: 1d
+            fixed_interval: 1h
+      diff: true
+      register: attach_idempotent
+
+    - name: Assert attached lifecycle is unchanged
+      ansible.builtin.assert:
+        that:
+          - attach_idempotent is not changed
+          - attach_idempotent.diff.before == attach_idempotent.diff.after
+
+    - name: Read attached lifecycle
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+      register: read_result
+
+    - name: Assert lifecycle read is unchanged and structured
+      ansible.builtin.assert:
+        that:
+          - read_result is not changed
+          - read_result.data_stream_exists
+          - read_result.data_stream_lifecycle.data_retention == '7d'
+          - read_result.data_stream_lifecycle.downsampling[0].fixed_interval == '1h'
+
+    - name: Predict partial lifecycle retention update
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+        data_retention: 14d
+      check_mode: true
+      diff: true
+      register: update_check
+
+    - name: Assert predicted update preserves omitted configuration
+      ansible.builtin.assert:
+        that:
+          - update_check is changed
+          - update_check.data_stream_lifecycle.enabled
+          - update_check.data_stream_lifecycle.data_retention == '14d'
+          - update_check.data_stream_lifecycle.downsampling[0].after == '1d'
+          - update_check.data_stream_lifecycle.effective_retention is not defined
+
+    - name: Read lifecycle after update check mode
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+      register: update_check_read
+
+    - name: Assert update check mode did not mutate lifecycle
+      ansible.builtin.assert:
+        that:
+          - update_check_read is not changed
+          - update_check_read.data_stream_lifecycle.data_retention == '7d'
+          - update_check_read.data_stream_lifecycle.downsampling[0].after == '1d'
+
+    - name: Partially update lifecycle retention
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+        data_retention: 14d
+      diff: true
+      register: update_result
+
+    - name: Assert update preserved downsampling
+      ansible.builtin.assert:
+        that:
+          - update_result is changed
+          - update_result.data_stream_lifecycle.data_retention == '14d'
+          - update_result.data_stream_lifecycle.effective_retention == '14d'
+          - update_result.data_stream_lifecycle.downsampling[0].after == '1d'
+          - update_result.data_stream_lifecycle.downsampling[0].fixed_interval == '1h'
+
+    - name: Reconcile partial lifecycle update
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+        data_retention: 14d
+      diff: true
+      register: update_idempotent
+
+    - name: Assert partial lifecycle update is unchanged
+      ansible.builtin.assert:
+        that:
+          - update_idempotent is not changed
+          - update_idempotent.diff.before == update_idempotent.diff.after
+
+    - name: Clear downsampling while preserving retention
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+        downsampling: []
+      diff: true
+      register: clear_downsampling
+
+    - name: Assert explicit downsampling clear preserved retention
+      ansible.builtin.assert:
+        that:
+          - clear_downsampling is changed
+          - clear_downsampling.data_stream_lifecycle.data_retention == '14d'
+          - clear_downsampling.data_stream_lifecycle.downsampling is not defined
+
+    - name: Reconcile cleared downsampling
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+        downsampling: []
+      diff: true
+      register: clear_downsampling_idempotent
+
+    - name: Assert cleared downsampling is unchanged
+      ansible.builtin.assert:
+        that:
+          - clear_downsampling_idempotent is not changed
+          - clear_downsampling_idempotent.diff.before == clear_downsampling_idempotent.diff.after
+
+    - name: Predict authoritative lifecycle replacement
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+        replace: true
+        enabled: true
+      check_mode: true
+      diff: true
+      register: replace_check
+
+    - name: Assert replacement predicts retention removal
+      ansible.builtin.assert:
+        that:
+          - replace_check is changed
+          - replace_check.data_stream_lifecycle.enabled
+          - replace_check.data_stream_lifecycle.data_retention is not defined
+          - replace_check.data_stream_lifecycle.downsampling is not defined
+          - replace_check.diff.after.data_retention is none
+
+    - name: Read lifecycle after replacement check mode
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+      register: replace_check_read
+
+    - name: Assert replacement check mode preserved retention
+      ansible.builtin.assert:
+        that:
+          - replace_check_read.data_stream_lifecycle.data_retention == '14d'
+
+    - name: Authoritatively replace and clear lifecycle configuration
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+        replace: true
+        enabled: true
+      diff: true
+      register: replace_result
+
+    - name: Assert authoritative lifecycle replacement
+      ansible.builtin.assert:
+        that:
+          - replace_result is changed
+          - replace_result.data_stream_lifecycle.enabled
+          - replace_result.data_stream_lifecycle.data_retention is not defined
+          - replace_result.data_stream_lifecycle.downsampling is not defined
+
+    - name: Reconcile authoritative lifecycle replacement
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+        replace: true
+        enabled: true
+      diff: true
+      register: replace_idempotent
+
+    - name: Assert lifecycle replacement is unchanged
+      ansible.builtin.assert:
+        that:
+          - replace_idempotent is not changed
+          - replace_idempotent.diff.before == replace_idempotent.diff.after
+
+    - name: Predict lifecycle detachment
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+        state: absent
+      check_mode: true
+      diff: true
+      register: detach_check
+
+    - name: Assert predicted lifecycle detachment preserves stream existence
+      ansible.builtin.assert:
+        that:
+          - detach_check is changed
+          - detach_check.data_stream_exists
+          - detach_check.data_stream_lifecycle is none
+          - detach_check.diff.before.enabled
+          - detach_check.diff.after == {}
+
+    - name: Read lifecycle after detachment check mode
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+      register: detach_check_read
+
+    - name: Assert detachment check mode did not mutate lifecycle
+      ansible.builtin.assert:
+        that:
+          - detach_check_read is not changed
+          - detach_check_read.data_stream_lifecycle.enabled
+
+    - name: Detach data stream lifecycle
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+        state: absent
+      diff: true
+      register: detach_result
+
+    - name: Assert lifecycle detachment
+      ansible.builtin.assert:
+        that:
+          - detach_result is changed
+          - detach_result.status == 200
+          - detach_result.data_stream_exists
+          - detach_result.data_stream_lifecycle is none
+          - detach_result.diff.after == {}
+
+    - name: Reconcile detached lifecycle
+      zupersero.elastic.data_stream_lifecycle:
+        name: phase1-data-lifecycle-integration
+        state: absent
+      diff: true
+      register: detach_idempotent
+
+    - name: Assert repeated lifecycle detachment is unchanged
+      ansible.builtin.assert:
+        that:
+          - detach_idempotent is not changed
+          - detach_idempotent.status == 200
+          - detach_idempotent.data_stream_exists
+          - detach_idempotent.data_stream_lifecycle is none
+          - detach_idempotent.diff.before == {}
+          - detach_idempotent.diff.after == {}
+
+    - name: Read data stream after lifecycle detachment
+      zupersero.elastic.data_stream:
+        name: phase1-data-lifecycle-integration
+      register: stream_after_detach
+
+    - name: Assert lifecycle detachment did not delete the stream
+      ansible.builtin.assert:
+        that:
+          - stream_after_detach is not changed
+          - stream_after_detach.data_stream.name == 'phase1-data-lifecycle-integration'
+          - stream_after_detach.data_stream.template == 'phase1-data-lifecycle-integration-template'
+  always:
+    - name: Always remove lifecycle data stream fixture
+      zupersero.elastic.data_stream:
+        name: phase1-data-lifecycle-integration
+        state: absent
+
+    - name: Always remove lifecycle template fixture
+      zupersero.elastic.index_template:
+        name: phase1-data-lifecycle-integration-template
+        state: absent

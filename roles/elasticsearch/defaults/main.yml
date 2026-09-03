@@ -1,0 +1,49 @@
+---
+elasticsearch_bootstrap: false
+elasticsearch_home: "/usr/share/elasticsearch"
+
+elasticsearch_version: "9.2.1"
+
+elasticsearch_allow_downgrade: false
+
+elasticsearch_install_method: "package" # package or tar
+elasticsearch_download_timeout: 30
+elasticsearch_package_install_timeout: 1800
+
+elasticsearch_systemd_service_overrides: ""
+
+elasticsearch_vm_max_map_count: 262144
+
+elasticsearch_user: "elasticsearch"
+elasticsearch_group: "elasticsearch"
+
+elasticsearch_config_content:
+  cluster:
+    name: "my_cluster"
+  discovery:
+    type: "single-node"
+  node:
+    name: "{{ inventory_hostname }}"
+  path:
+    data: "/var/lib/elasticsearch"
+    logs: "/var/log/elasticsearch"
+  network:
+    host: "0.0.0.0"
+  http:
+    port: 9200
+  xpack:
+    security:
+      enabled: false
+
+# Jvm Options
+elasticsearch_jvm_heap_size: "8g"
+
+elasticsearch_jvm_extra_options: ""
+
+# security settings
+
+elasticsearch_security_enable_default: false
+
+elasticsearch_secure_config: {}
+
+elasticsearch_bootstrap_password: "changeme"

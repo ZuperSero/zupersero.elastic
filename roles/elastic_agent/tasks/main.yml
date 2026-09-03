@@ -1,0 +1,28 @@
+---
+- name: Get distribution information
+  ansible.builtin.gather_facts:
+    gather_subset:
+      - distribution
+      - hardware
+      - service_mgr
+
+- name: Validate Elastic Agent role inputs
+  ansible.builtin.include_tasks: "./validate.yml"
+
+- name: Resolve Elastic Agent version
+  ansible.builtin.include_tasks: "./version.yml"
+
+- name: Get Fleet enrollment token
+  ansible.builtin.include_tasks: "./enrollment_token.yml"
+
+- name: Install dependencies
+  ansible.builtin.include_tasks: "./install/{{ ansible_facts.os_family | lower }}.yml"
+
+- name: Install Elastic Agent
+  ansible.builtin.include_tasks: "./install/main.yml"
+
+- name: Make sure Elastic Agent is started
+  ansible.builtin.service:
+    name: "{{ elastic_agent_service_name }}"
+    state: started
+    enabled: true
