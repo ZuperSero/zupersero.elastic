@@ -28,45 +28,65 @@
     - _elastic_agent_installed_version_number | length > 0
     - _elastic_agent_installed_version_number != elastic_agent_effective_version
 
-- name: Download Elastic Agent archive
-  ansible.builtin.get_url:
-    url: "{{ elastic_agent_effective_artifact_url }}"
-    dest: "{{ elastic_agent_archive_path }}"
-    checksum: "{{ elastic_agent_artifact_checksum | default(omit, true) }}"
-    owner: root
-    group: root
-    mode: "0644"
+- name: Install Elastic Agent from archive
   when: not _elastic_agent_binary.stat.exists
+  block:
+    - name: Ensure Elastic Agent staging directory exists
+      ansible.builtin.file:
+        path: "{{ elastic_agent_download_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
 
-- name: Extract Elastic Agent archive
-  ansible.builtin.unarchive:
-    src: "{{ elastic_agent_archive_path }}"
-    dest: "{{ elastic_agent_download_dir }}"
-    remote_src: true
-    owner: root
-    group: root
-  when: not _elastic_agent_binary.stat.exists
+    - name: Download Elastic Agent archive
+      ansible.builtin.get_url:
+        url: "{{ elastic_agent_effective_artifact_url }}"
+        dest: "{{ elastic_agent_archive_path }}"
+        checksum: "{{ elastic_agent_artifact_checksum | default(omit, true) }}"
+        owner: root
+        group: root
+        mode: "0644"
 
-- name: Install and enroll Elastic Agent
-  ansible.builtin.command:
-    argv: >-
-      {{
-        [
-          './elastic-agent',
-          'install',
-          '--url', elastic_agent_fleet_url,
-          '--enrollment-token', _elastic_agent_enrollment_token,
-          '--base-path', elastic_agent_install_base_path,
-          '--non-interactive',
-          '--force'
-        ]
-        + (['--certificate-authorities', elastic_agent_certificate_authorities] if elastic_agent_certificate_authorities | length > 0 else [])
-        + (['--ca-sha256', elastic_agent_ca_sha256] if elastic_agent_ca_sha256 | length > 0 else [])
-        + (['--insecure'] if elastic_agent_insecure else [])
-      }}
-    chdir: "{{ elastic_agent_extract_dir }}"
-  register: _elastic_agent_install
-  changed_when: true
-  no_log: true
-  when: not _elastic_agent_binary.stat.exists
-  notify: Restart Elastic Agent
+    - name: Remove stale Elastic Agent extract directory
+      ansible.builtin.file:
+        path: "{{ elastic_agent_extract_dir }}"
+        state: absent
+
+    - name: Extract Elastic Agent archive
+      ansible.builtin.unarchive:
+        src: "{{ elastic_agent_archive_path }}"
+        dest: "{{ elastic_agent_download_dir }}"
+        remote_src: true
+        owner: root
+        group: root
+
+    - name: Install and enroll Elastic Agent
+      ansible.builtin.command:
+        argv: >-
+          {{
+            [
+              './elastic-agent',
+              'install',
+              '--url', elastic_agent_fleet_url,
+              '--enrollment-token', _elastic_agent_enrollment_token,
+              '--base-path', elastic_agent_install_base_path,
+              '--non-interactive',
+              '--force'
+            ]
+            + (['--certificate-authorities', elastic_agent_certificate_authorities] if elastic_agent_certificate_authorities | length > 0 else [])
+            + (['--ca-sha256', elastic_agent_ca_sha256] if elastic_agent_ca_sha256 | length > 0 else [])
+            + (['--insecure'] if elastic_agent_insecure else [])
+          }}
+        chdir: "{{ elastic_agent_extract_dir }}"
+      register: _elastic_agent_install
+      changed_when: true
+      no_log: true
+      notify: Restart Elastic Agent
+      timeout: 300
+  always:
+    - name: Remove Elastic Agent extract directory
+      ansible.builtin.file:
+        path: "{{ elastic_agent_extract_dir }}"
+        state: absent
+      when: elastic_agent_cleanup_extract_dir

@@ -11,7 +11,7 @@
     return_content: true
     status_code: 200
   register: _elastic_agent_elasticsearch_root
-  no_log: true
+  no_log: false
   delegate_to: "{{ elastic_agent_api_delegate }}"
   when: elastic_agent_version == "auto"
 
