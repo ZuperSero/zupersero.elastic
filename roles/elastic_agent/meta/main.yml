@@ -5,25 +5,12 @@ galaxy_info:
 
   license: GPL-3.0-or-later
 
-  min_ansible_version: "2.14"
+  min_ansible_version: "2.19"
 
   platforms:
-    - name: Debian
-      versions:
-        - bullseye
-        - bookworm
     - name: Ubuntu
       versions:
-        - focal
-        - jammy
         - noble
-    - name: Fedora
-      versions:
-        - all
-    - name: EL
-      versions:
-        - "8"
-        - "9"
 
   galaxy_tags:
     - elastic
@@ -101,3 +88,31 @@ argument_specs:
         description: Optional checksum for the Elastic Agent tarball.
         type: str
         default: ""
+      elastic_agent_download_base_url:
+        description: Base URL used to download Elastic Agent artifacts.
+        type: str
+        default: https://artifacts.elastic.co/downloads/beats/elastic-agent
+      elastic_agent_api_delegate:
+        description: Host that performs Elasticsearch and Kibana API requests.
+        type: str
+        default: localhost
+      elastic_agent_download_dir:
+        description: Controller or target download staging directory.
+        type: path
+        default: /tmp
+      elastic_agent_install_base_path:
+        description: Base directory used by the Elastic Agent installer.
+        type: path
+        default: /opt
+      elastic_agent_binary_path:
+        description: Installed Elastic Agent executable path.
+        type: path
+        default: /opt/Elastic/Agent/elastic-agent
+      elastic_agent_service_name:
+        description: System service name.
+        type: str
+        default: elastic-agent
+      elastic_agent_enrollment_token_name:
+        description: Name used when creating a Fleet enrollment token.
+        type: str
+        default: ansible-{{ inventory_hostname }}-{{ elastic_agent_policy_id }}

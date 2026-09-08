@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## [1.0.0] - 2026-09-02
+
+### Added
 
 - Add guarded GitHub Release automation that builds and publishes matching
   collection versions to Ansible Galaxy.
@@ -32,14 +34,7 @@
   retention and downsampling, normalized effective and global retention
   responses, preservation-aware updates, authoritative clearing, check and
   diff mode, and complete live lifecycle coverage.
-
-
-
-## [1.0.0] - 2025-01-18
-
-### Added
-
-- Initial release of the `zupersero.elastic` collection
-- `space` module for managing Kibana Spaces (create, update, delete)
-- `elasticsearch` role for installing and configuring Elasticsearch
-- Module utilities for Kibana API interaction
+- Add typed index-alias, cluster-settings, snapshot-repository, snapshot-
+  lifecycle-policy, API-key, and role-mapping management.
+- Add Elasticsearch and Elastic Agent installation roles.
+- Add independent Semantic Versioning and reproducible release validation.

@@ -13,10 +13,9 @@
         name: application-events
         index_patterns:
           - application-events-*
-        template:
-          settings:
-            number_of_shards: 1
-          mappings:
-            properties:
-              service:
-                type: keyword
+        settings:
+          number_of_shards: 1
+        mappings:
+          properties:
+            service:
+              type: keyword

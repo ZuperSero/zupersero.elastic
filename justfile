@@ -25,8 +25,19 @@ molecule:
     .venv/bin/ansible-galaxy collection install . --force
     cd extensions && PATH="{{ justfile_directory() }}/.venv/bin:$PATH" molecule test --scenario-name elasticsearch
 
+molecule-agent:
+    .venv/bin/ansible-galaxy collection install . --force
+    cd extensions && PATH="{{ justfile_directory() }}/.venv/bin:$PATH" molecule test --scenario-name elastic_agent
+
+molecule-all: molecule molecule-agent
+
 ruff:
     .venv/bin/ruff check .
+lint:
+    .venv/bin/ansible-lint
+unit:
+    .venv/bin/ansible-test units --coverage
+    .venv/bin/ansible-test coverage report --include 'plugins/*'
 sanity:
     .venv/bin/ansible-test sanity --coverage
     .venv/bin/ansible-test coverage report --include 'plugins/*'
@@ -83,7 +94,7 @@ docker_cleanup:
     docker stop $(docker ps -a -q) || true
     docker rm $(docker ps -a -q) || true
 
-docs:
+docs-build:
     .venv/bin/ansible-galaxy collection install . --force
     mkdir -p .build/docs
     .venv/bin/antsibull-docs sphinx-init --use-current --dest-dir .build/docs zupersero.elastic
@@ -91,4 +102,22 @@ docs:
     cd .build/docs && PATH="{{ justfile_directory() }}/.venv/bin:$PATH" ./build.sh
     cp docs/environment_variables.rst .build/docs/rst/collections/environment_variables.rst
     cd .build/docs && PATH="{{ justfile_directory() }}/.venv/bin:$PATH" sphinx-build -M html rst build -c . -W --keep-going
+docs: docs-build
     python3 -m http.server --directory .build/docs/build/html
+
+build:
+    mkdir -p .build/release
+    .venv/bin/ansible-galaxy collection build --force --output-path .build/release
+
+artifact-check: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+    artifact=".build/release/zupersero-elastic-$(awk -F': *' '/^version:/ {print $2; exit}' galaxy.yml | tr -d '[:space:]').tar.gz"
+    test -f "$artifact"
+    staging="$(mktemp -d)"
+    trap 'rm -rf "$staging"' EXIT
+    ANSIBLE_COLLECTIONS_PATH="$staging" .venv/bin/ansible-galaxy collection install "$artifact" --force
+    ANSIBLE_COLLECTIONS_PATH="$staging" .venv/bin/ansible-doc -t module zupersero.elastic.index >/dev/null
+    ANSIBLE_COLLECTIONS_PATH="$staging" .venv/bin/ansible-doc -t role zupersero.elastic.elasticsearch >/dev/null
+
+release-check: ruff lint sanity unit docs-build artifact-check

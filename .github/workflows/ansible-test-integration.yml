@@ -29,7 +29,15 @@ jobs:
         python_version: ["3.11", "3.12", "3.13"]
     steps:
       - name: Get elasticsearch
-        run: curl -fsSL https://elastic.co/start-local | ES_LOCAL_PASSWORD="changeme" sh -s -- -v ${{ matrix.elastic }}
+        run: |
+          docker run --detach --name elasticsearch \
+            --publish 127.0.0.1:9200:9200 \
+            --mount type=tmpfs,destination=/tmp/snapshots \
+            --env discovery.type=single-node \
+            --env xpack.security.enabled=true \
+            --env ELASTIC_PASSWORD=changeme \
+            --env path.repo=/tmp/snapshots \
+            "docker.elastic.co/elasticsearch/elasticsearch:${{ matrix.elastic }}"
 
       - name: Wait for Elasticsearch
         run: |

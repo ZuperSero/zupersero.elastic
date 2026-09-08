@@ -13,8 +13,8 @@ authors:
 description: |
   An Ansible collection for installing, configuring, and managing Elasticsearch.
   Kibana roles and API modules are maintained in the zupersero.kibana collection.
-  The collection might not be complete and is under active development.
-  If there is a module or a role for something specific you need, feel free to open an issue or a PR.
+  The 1.0 release provides typed Elasticsearch resource modules, generic API
+  escape hatches, and installation roles for supported Linux platforms.
 
 
 license:
@@ -30,7 +30,6 @@ tags:
 
 dependencies:
   community.general: ">=12.2.0"
-  community.docker: ">=4.8.0"
   ansible.posix: ">=2.1.0"
 
 repository: https://github.com/ZuperSero/zupersero.elastic

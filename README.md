@@ -8,6 +8,17 @@
 An Ansible collection for installing, configuring, and managing Elasticsearch.
 Kibana roles and API modules live in the separate `zupersero.kibana` collection.
 
+Collection releases use independent Semantic Versioning. A collection version
+does not identify or mirror an Elasticsearch version.
+
+## Supported versions
+
+The 1.0 release is verified with ansible-core 2.19, controller Python 3.11-3.13,
+and Elasticsearch 9.2, 9.4, and 9.5. The Elasticsearch role is verified on
+Ubuntu 24.04, Debian 13, and Rocky Linux 10; the Elastic Agent role is verified
+on Ubuntu 24.04. Elasticsearch Serverless is not part of the initial support
+guarantee.
+
 Also check out my other collections:
 [zupersero.kibana](https://github.com/ZuperSero/zupersero.kibana) for Kibana and
 Fleet management, and [zupersero.tailscale](https://github.com/ZuperSero/zupersero.tailscale)
@@ -36,6 +47,11 @@ ELASTICSEARCH_PASSWORD
 ELASTICSEARCH_API_KEY
 ELASTICSEARCH_VALIDATE_CERTS
 ```
+
+The complete environment-variable reference, including bearer authentication,
+multiple endpoints, custom headers, CA data, client certificates, certificate
+fingerprints, and retry controls, is in
+[`docs/environment_variables.rst`](docs/environment_variables.rst).
 
 For AWX or Automation Controller, inject these variables through a custom
 credential type and mark passwords and API keys as secret.
@@ -77,6 +93,12 @@ and generated documentation contain the complete module and role reference.
 Start with the examples above for common tasks, or use
 `zupersero.elastic.elasticsearch_object` when a typed module is not available
 for an API resource.
+
+The initial typed surface covers indices and mappings, aliases, cluster
+settings, composable templates, ILM, data streams, ingest and enrich policies,
+snapshot repositories and lifecycle policies, users, roles, role mappings, and
+API keys. `elasticsearch_info` and `elasticsearch_request` cover read/list and
+non-resource operations not represented by a typed module.
 
 Template modules preserve omitted existing fields during normal updates. Set
 `replace: true` when declaring the complete desired template and clearing

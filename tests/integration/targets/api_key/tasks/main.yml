@@ -1,0 +1,45 @@
+---
+- name: Test API key lifecycle
+  module_defaults:
+    zupersero.elastic.api_key:
+      url: http://localhost:9200
+      username: elastic
+      password: changeme
+  block:
+    - name: Predict API key creation
+      zupersero.elastic.api_key:
+        name: integration-api-key
+        metadata: {owner: integration}
+      check_mode: true
+      register: predicted
+    - name: Create API key
+      zupersero.elastic.api_key:
+        name: integration-api-key
+        metadata: {owner: integration}
+      register: created
+      no_log: true
+    - name: Update API key
+      zupersero.elastic.api_key:
+        id: "{{ created.id }}"
+        name: integration-api-key
+        metadata: {owner: updated}
+      register: updated
+    - name: Repeat API key update
+      zupersero.elastic.api_key:
+        id: "{{ created.id }}"
+        name: integration-api-key
+        metadata: {owner: updated}
+      register: repeated
+    - name: Invalidate API key
+      zupersero.elastic.api_key: {id: "{{ created.id }}", state: absent}
+      register: deleted
+    - name: Repeat API key invalidation
+      zupersero.elastic.api_key: {id: "{{ created.id }}", state: absent}
+      register: deleted_again
+    - name: Assert API key lifecycle
+      ansible.builtin.assert:
+        that: [predicted is changed, updated is changed, repeated is not changed, deleted is changed, deleted_again is not changed]
+  always:
+    - name: Clean up API key
+      zupersero.elastic.api_key: {id: "{{ created.id }}", state: absent}
+      when: created.id is defined

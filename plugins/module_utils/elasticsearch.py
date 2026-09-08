@@ -467,15 +467,21 @@ class ElasticsearchClient:
 
     def __init__(self, module: Any) -> None:
         from ansible_collections.zupersero.elastic.plugins.module_utils.elasticsearch_services import (
+            ApiKeyService,
+            ClusterSettingsService,
             ComponentTemplateService,
             DataStreamLifecycleService,
             DataStreamService,
             EnrichPolicyService,
             IndexService,
+            IndexAliasService,
             IndexTemplateService,
             LifecycleService,
             PipelineService,
             RoleService,
+            RoleMappingService,
+            SnapshotLifecyclePolicyService,
+            SnapshotRepositoryService,
             UserService,
         )
 
@@ -510,6 +516,8 @@ class ElasticsearchClient:
         self._validate_options()
 
         self.index = IndexService(self)
+        self.index_alias = IndexAliasService(self)
+        self.cluster_settings = ClusterSettingsService(self)
         self.data_stream = DataStreamService(self)
         self.data_stream_lifecycle = DataStreamLifecycleService(self)
         self.enrich_policy = EnrichPolicyService(self)
@@ -518,6 +526,10 @@ class ElasticsearchClient:
         self.lifecycle = LifecycleService(self)
         self.pipeline = PipelineService(self)
         self.role = RoleService(self)
+        self.role_mapping = RoleMappingService(self)
+        self.api_keys = ApiKeyService(self)
+        self.snapshot_repository = SnapshotRepositoryService(self)
+        self.snapshot_lifecycle_policy = SnapshotLifecyclePolicyService(self)
         self.user = UserService(self)
 
     def _resolve_endpoints(

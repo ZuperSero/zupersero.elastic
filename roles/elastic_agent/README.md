@@ -6,7 +6,9 @@ Installs Elastic Agent from the Linux tarball and enrolls the host into Fleet.
 Requirements
 ------------
 
-The target host must be Linux with systemd and belong to the Debian or RedHat OS family.
+The 1.0 release supports Ubuntu 24.04 targets with systemd. The role validates
+the Debian and RedHat families for forward compatibility, but other platforms
+are not part of the initial support guarantee.
 
 Role Variables
 --------------

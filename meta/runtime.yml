@@ -1,9 +1,10 @@
 ---
-requires_ansible: ">=2.15.0"
+requires_ansible: ">=2.19.0"
 
 action_groups:
   elasticsearch:
     - zupersero.elastic.component_template
+    - zupersero.elastic.cluster_settings
     - zupersero.elastic.data_stream
     - zupersero.elastic.data_stream_lifecycle
     - zupersero.elastic.elasticsearch_info
@@ -11,8 +12,13 @@ action_groups:
     - zupersero.elastic.elasticsearch_request
     - zupersero.elastic.enrich_policy
     - zupersero.elastic.index
+    - zupersero.elastic.index_alias
     - zupersero.elastic.index_lifecycle_policy
     - zupersero.elastic.index_template
     - zupersero.elastic.ingest_pipeline
+    - zupersero.elastic.api_key
+    - zupersero.elastic.role_mapping
+    - zupersero.elastic.snapshot_lifecycle_policy
+    - zupersero.elastic.snapshot_repository
     - zupersero.elastic.user
     - zupersero.elastic.user_role
