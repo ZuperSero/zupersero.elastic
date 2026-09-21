@@ -26,6 +26,8 @@ jobs:
         ansible_core: ["2.19.5"]
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: ansible_collections/zupersero/elastic
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -35,4 +37,5 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install "ansible-core==${{ matrix.ansible_core }}" coverage passlib pytest
       - name: Run unit tests (Python ${{ matrix.python }})
+        working-directory: ansible_collections/zupersero/elastic
         run: ansible-test units --python ${{ matrix.python }} --color yes

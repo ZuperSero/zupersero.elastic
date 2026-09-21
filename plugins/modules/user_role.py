@@ -1,6 +1,7 @@
 # Copyright (c) 2025, zupersero
 # GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
 # SPDX-License-Identifier: GPL-3.0-or-later
+# pylint: disable=disallowed-name
 
 from __future__ import annotations
 
@@ -14,6 +15,8 @@ description:
 version_added: "1.0.0"
 author:
   - Zupersero (@zupersero)
+extends_documentation_fragment:
+  - zupersero.elastic.elasticsearch
 options:
   name:
     description:
@@ -112,122 +115,9 @@ options:
     choices: [ present, absent ]
     default: present
     type: str
-  url:
-    description:
-      - URL of the Elasticsearch instance.
-      - Can also be set via the ELASTICSEARCH_URL environment variable.
-    required: false
-    type: str
-  urls:
-    description:
-      - Elasticsearch URLs used in order for request failover.
-      - Can also be set as a comma-separated ELASTICSEARCH_URLS environment variable.
-    type: list
-    elements: str
-  username:
-    description:
-      - Username for authenticating to Elasticsearch.
-      - Can also be set via the ELASTICSEARCH_USERNAME environment variable.
-    required: false
-    type: str
-  password:
-    description:
-      - Password for authenticating to Elasticsearch.
-      - Can also be set via the ELASTICSEARCH_PASSWORD environment variable.
-    required: false
-    type: str
-  api_key:
-    description:
-      - API key for authenticating to Elasticsearch.
-      - Can also be set via the ELASTICSEARCH_API_KEY environment variable.
-    required: false
-    type: str
-  bearer_token:
-    description:
-      - Bearer token for authenticating to Elasticsearch.
-      - Can also be set via the ELASTICSEARCH_BEARER_TOKEN environment variable.
-    type: str
-  headers:
-    description:
-      - Additional HTTP headers sent with every request.
-      - Can also be set as JSON via the ELASTICSEARCH_HEADERS environment variable.
-    type: dict
-    default: {}
-  validate_certs:
-    description:
-      - Whether to validate SSL certificates.
-      - Can also be set via the ELASTICSEARCH_VALIDATE_CERTS environment variable.
-    type: bool
-    default: true
-  ca_path:
-    description:
-      - Path to a PEM CA certificate bundle.
-      - Can also be set via the ELASTICSEARCH_CA_PATH environment variable.
-    type: path
-  ca_data:
-    description:
-      - PEM CA certificate data.
-      - Can also be set via the ELASTICSEARCH_CA_DATA environment variable.
-    type: str
-  client_cert:
-    description:
-      - PEM-formatted client certificate chain.
-    type: path
-  client_key:
-    description:
-      - PEM-formatted private key for the client certificate.
-    type: path
-  certificate_fingerprint:
-    description:
-      - SHA-256 fingerprint of the HTTPS server leaf certificate.
-      - Uses an unauthenticated TLS preflight and cannot be combined with I(client_cert).
-      - Can also be set via the ELASTICSEARCH_CERTIFICATE_FINGERPRINT environment variable.
-    type: str
-  force_basic_auth:
-    description:
-      - Send the basic authentication header with the initial request.
-    type: bool
-    default: false
-  url_username:
-    description:
-      - Username embedded in URL authentication.
-    type: str
-  url_password:
-    description:
-      - Password embedded in URL authentication.
-    type: str
-  timeout:
-    description:
-      - Timeout in seconds for API requests.
-    type: int
-    default: 30
-  retries:
-    description:
-      - Number of times to retry failed requests.
-    type: int
-    default: 3
-  retry_pause:
-    description:
-      - Seconds to wait between retry attempts.
-    type: float
-    default: 1.0
-  retry_status_codes:
-    description:
-      - HTTP status codes that trigger endpoint failover and retry for safe read methods.
-      - Mutating methods are not retried automatically.
-    type: list
-    elements: int
-    default: [429, 502, 503, 504]
-  retry_mutating_requests:
-    description:
-      - Whether mutating requests can be retried and failed over.
-      - Can also be set via the ELASTICSEARCH_RETRY_MUTATING_REQUESTS environment variable.
-    type: bool
-    default: false
-requirements:
-  - ansible.module_utils.urls
 notes:
   - Authentication uses I(api_key), I(bearer_token), or I(username)+I(password).
+  - Check mode predicts creation, updates, and deletion without sending mutating requests.
 '''
 
 EXAMPLES = r'''
@@ -276,133 +166,127 @@ changed:
   description: Whether any change was made.
   returned: always
   type: bool
+diff:
+  description: Desired-field projection before and after reconciliation.
+  returned: always
+  type: dict
+  contains:
+    before:
+      description: Current values for fields under management.
+      type: dict
+    after:
+      description: Desired values for fields under management.
+      type: dict
 '''
 
 from typing import Any  # noqa: E402
-import json  # noqa: E402
 
-from ansible_collections.zupersero.elastic.plugins.module_utils import elasticsearch  # noqa: E402
 from ansible.module_utils.basic import AnsibleModule  # noqa: E402
-from ansible.module_utils.common.dict_transformations import recursive_diff  # noqa: E402
+
+from ansible_collections.zupersero.elastic.plugins.module_utils.elasticsearch import (  # noqa: E402
+    ElasticsearchClient,
+    elasticsearch_argument_spec,
+    elasticsearch_mutually_exclusive,
+    elasticsearch_required_together,
+    fail_api_error,
+    sanitize_data,
+)
 
 
-def _normalize_list_of_dicts(items: list[dict]) -> list[dict]:
-    """
-    Normalize a list of dictionaries for comparison.
-    """
-    normalized_items: list[dict] = []
-    for item in items:
-        entry = dict(item)
-        names = entry.pop('names', entry.pop('index', None))
-        if names is not None:
-            entry['names'] = sorted(names)
-
-        privileges = entry.get('privileges')
-        if privileges is not None:
-            entry['privileges'] = sorted(privileges)
-
-        resources = entry.get('resources')
-        if resources is not None:
-            entry['resources'] = sorted(resources)
-
-        allow_restricted = entry.get('allow_restricted_indices')
-        if allow_restricted is not None:
-            entry['allow_restricted_indices'] = bool(allow_restricted)
-
-        normalized_items.append(entry)
-
-    return sorted(normalized_items, key=lambda x: json.dumps(x, sort_keys=True))
+def _desired_role(module: AnsibleModule) -> dict[str, Any]:
+    """Build the sparse role fields explicitly set by this task."""
+    desired: dict[str, Any] = {}
+    for field in ("cluster", "indices", "applications", "run_as", "metadata", "transient_metadata"):
+        if module.params.get(field) is not None:
+            desired[field] = module.params[field]
+    if module.params.get("global_privileges") is not None:
+        desired["global"] = module.params["global_privileges"]
+    return desired
 
 
-def normalize_role_data(role_data: dict[str, Any]) -> dict[str, Any]:
-    """
-    Normalize role data for comparison.
-    """
-    normalized = {
-        'name': role_data.get('name') or '',
-        'cluster': sorted(role_data.get('cluster', [])),
-        'run_as': sorted(role_data.get('run_as', []) or role_data.get('runAs', [])),
-        'indices': _normalize_list_of_dicts(role_data.get('indices') or []),
-        'applications': _normalize_list_of_dicts(role_data.get('applications') or []),
-        'metadata': role_data.get('metadata') or {},
-    }
+def run_module(
+    module: AnsibleModule,
+    client: ElasticsearchClient | None = None,
+) -> None:
+    """Reconcile an Elasticsearch security role."""
+    client = client or ElasticsearchClient(module)
+    name = module.params["name"]
+    state = module.params["state"]
 
-    transient_meta = role_data.get('transient_metadata')
-    if transient_meta is None:
-        transient_meta = role_data.get('transientMetadata')
-    normalized['transient_metadata'] = transient_meta or {}
+    read_response, current = client.role.get(name)
+    if read_response.status not in (200, 404):
+        fail_api_error(
+            module,
+            operation="read role",
+            path=client.role.path(name),
+            response=read_response,
+            success_codes=[200, 404],
+        )
 
-    if 'global' in role_data:
-        normalized['global'] = role_data.get('global') or role_data.get('global_privileges', {})
+    if state == "absent":
+        diff = {"before": sanitize_data(current or {}), "after": {}}
+        if current is None:
+            module.exit_json(changed=False, role=None, diff=diff)
+        if module.check_mode:
+            module.exit_json(changed=True, role=sanitize_data(current), diff=diff)
+        response = client.role.delete(name)
+        if response.status not in (200, 404):
+            fail_api_error(
+                module,
+                operation="delete role",
+                path=client.role.path(name),
+                response=response,
+                success_codes=[200, 404],
+            )
+        module.exit_json(changed=True, role=sanitize_data(current), diff=diff)
 
-    return normalized
+    desired = _desired_role(module)
 
+    if current is None:
+        predicted = client.role.payload(None, desired)
+        predicted["name"] = name
+        diff = {"before": {}, "after": sanitize_data(predicted)}
+        if module.check_mode:
+            module.exit_json(changed=True, role=sanitize_data(predicted), diff=diff)
 
-def _strip_none_values(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """
-    Remove keys with None values from list entries.
-    """
-    cleaned: list[dict[str, Any]] = []
-    for entry in items:
-        cleaned.append({key: value for key, value in entry.items() if value is not None})
-    return cleaned
+        response = client.role.create_or_update(name, current=None, desired=desired)
+        if response.status not in (200, 201):
+            fail_api_error(
+                module,
+                operation="create role",
+                path=client.role.path(name),
+                response=response,
+                success_codes=[200, 201],
+            )
+        _, current = client.role.get(name)
+        module.exit_json(changed=True, role=sanitize_data(current), diff=diff)
+        return
 
+    changed, diff = client.role.compare(current, desired)
 
-def build_desired_role(module: AnsibleModule, current_role: dict[str, Any] | None) -> tuple[dict[str, Any], dict[str, Any]]:
-    """
-    Build the desired role payload and comparison dict.
+    if not changed:
+        module.exit_json(changed=False, role=sanitize_data(current), diff=diff)
 
-    Returns:
-        tuple: (payload_for_api, desired_role_state)
-    """
-    params = module.params
+    if module.check_mode:
+        predicted = client.role.payload(current, desired)
+        predicted["name"] = name
+        module.exit_json(changed=True, role=sanitize_data(predicted), diff=diff)
 
-    def resolve(field: str, default: Any, alt_keys: tuple[str, ...] = ()) -> Any:
-        value = params.get(field)
-        if value is not None:
-            return value
-        if current_role:
-            for key in (field, *alt_keys):
-                if key in current_role:
-                    return current_role.get(key)
-        return default
-
-    desired_state = {
-        'name': params['name'],
-        'cluster': resolve('cluster', []),
-        'indices': resolve('indices', []),
-        'applications': resolve('applications', []),
-        'run_as': resolve('run_as', []),
-        'metadata': resolve('metadata', {}),
-        'transient_metadata': resolve('transient_metadata', {'enabled': True}, ('transientMetadata',)),
-    }
-
-    global_privileges = resolve('global_privileges', None, ('global',))
-    if global_privileges is not None:
-        desired_state['global'] = global_privileges
-
-    cleaned_indices = _strip_none_values(desired_state['indices'])
-    cleaned_applications = _strip_none_values(desired_state['applications'])
-    desired_state['indices'] = cleaned_indices
-    desired_state['applications'] = cleaned_applications
-
-    payload: dict[str, Any] = {
-        'cluster': desired_state['cluster'],
-        'indices': cleaned_indices,
-        'applications': cleaned_applications,
-        'run_as': desired_state['run_as'],
-        'metadata': desired_state['metadata'],
-        'transient_metadata': desired_state['transient_metadata'],
-    }
-
-    if global_privileges is not None:
-        payload['global'] = global_privileges
-
-    return payload, desired_state
+    response = client.role.create_or_update(name, current=current, desired=desired)
+    if response.status not in (200, 201):
+        fail_api_error(
+            module,
+            operation="update role",
+            path=client.role.path(name),
+            response=response,
+            success_codes=[200, 201],
+        )
+    _, current = client.role.get(name)
+    module.exit_json(changed=True, role=sanitize_data(current), diff=diff)
 
 
 def main() -> None:
-    argument_spec = elasticsearch.elasticsearch_argument_spec()
+    argument_spec = elasticsearch_argument_spec()
 
     argument_spec.update(
         name=dict(type='str', required=True),
@@ -440,73 +324,11 @@ def main() -> None:
     module = AnsibleModule(
         argument_spec=argument_spec,
         supports_check_mode=True,
-        required_if=elasticsearch.elasticsearch_required_if(),
-        required_together=elasticsearch.elasticsearch_required_together(),
-        mutually_exclusive=elasticsearch.elasticsearch_mutually_exclusive(),
+        required_together=elasticsearch_required_together(),
+        mutually_exclusive=elasticsearch_mutually_exclusive(),
     )
 
-    role_name = module.params['name']
-    state = module.params['state']
-
-    client = elasticsearch.ElasticsearchClient(module)
-
-    status_code, current_role = client.role.get(role_name)
-    role_exists = status_code == 200
-
-    result: dict[str, Any] = {'changed': False}
-
-    if state == 'present':
-        payload, desired_state = build_desired_role(module, current_role if role_exists else None)
-        desired_normalized = normalize_role_data(desired_state)
-
-        if not role_exists:
-            result['changed'] = True
-
-            if module.check_mode:
-                result['role'] = desired_state
-                module.exit_json(**result)
-
-            status_code, response = client.role.create_or_update(role_name, payload)
-            if status_code not in [200, 201]:
-                error_msg = response.get('error', 'Unknown error') if isinstance(response, dict) else 'Unknown error'
-                module.fail_json(msg=f"Failed to create role: {error_msg}", status_code=status_code, response=response)
-
-            status_code, created_role = client.role.get(role_name)
-            result['role'] = created_role if status_code == 200 else response
-        else:
-            current_normalized = normalize_role_data(current_role)
-            diff = recursive_diff(current_normalized, desired_normalized)
-
-            if diff:
-                result['changed'] = True
-
-                if module.check_mode:
-                    result['role'] = desired_state
-                    module.exit_json(**result)
-
-                status_code, response = client.role.create_or_update(role_name, payload)
-                if status_code not in [200, 201]:
-                    error_msg = response.get('error', 'Unknown error') if isinstance(response, dict) else 'Unknown error'
-                    module.fail_json(msg=f"Failed to update role: {error_msg}", status_code=status_code, response=response, payload=payload)
-
-                status_code, updated_role = client.role.get(role_name)
-                result['role'] = updated_role if status_code == 200 else response
-            else:
-                result['role'] = current_role
-    else:
-        if role_exists:
-            result['changed'] = True
-            result['role'] = current_role if isinstance(current_role, dict) else {'name': role_name}
-
-            if module.check_mode:
-                module.exit_json(**result)
-
-            status_code, response = client.role.delete(role_name)
-            if status_code not in [200, 404]:
-                error_msg = response.get('error', 'Unknown error') if isinstance(response, dict) else 'Unknown error'
-                module.fail_json(msg=f"Failed to delete role: {error_msg}", status_code=status_code, response=response)
-
-    module.exit_json(**result)
+    run_module(module)
 
 
 if __name__ == '__main__':

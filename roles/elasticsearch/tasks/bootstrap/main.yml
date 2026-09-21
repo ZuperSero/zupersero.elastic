@@ -1,4 +1,13 @@
 ---
+- name: Require a bootstrap password
+  ansible.builtin.assert:
+    that:
+      - elasticsearch_bootstrap_password is defined
+      - elasticsearch_bootstrap_password | length > 0
+    fail_msg: >-
+      elasticsearch_bootstrap_password must be set when elasticsearch_bootstrap is true.
+    quiet: true
+
 - name: Warning
   ansible.builtin.debug:
     msg: |

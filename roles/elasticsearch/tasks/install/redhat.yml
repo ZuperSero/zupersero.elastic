@@ -42,10 +42,13 @@
     'elasticsearch' not in ansible_facts.packages or
     ansible_facts.packages.elasticsearch[0].version != elasticsearch_version
   block:
-    - name: Remove versionlock elasticsearch
-      community.general.dnf_versionlock:
-        name: elasticsearch
-        state: absent
+    - name: Remove existing elasticsearch dnf versionlock # noqa no-changed-when
+      ansible.builtin.command:
+        cmd: dnf versionlock delete elasticsearch
+      register: _elasticsearch_versionlock_delete
+      failed_when: >-
+        _elasticsearch_versionlock_delete.rc != 0 and
+        'no matching' not in (_elasticsearch_versionlock_delete.stderr | lower)
 
     - name: Install elasticsearch package
       ansible.builtin.dnf:
@@ -54,7 +57,6 @@
       async: "{{ ansible_check_mode | ternary(0, elasticsearch_package_install_timeout) }}"
       poll: 10
 
-    - name: Versionlock elasticsearch
-      community.general.dnf_versionlock:
-        name: elasticsearch
-        state: present
+    - name: Versionlock elasticsearch # noqa no-changed-when
+      ansible.builtin.command:
+        cmd: "dnf versionlock add elasticsearch-{{ elasticsearch_version }}"

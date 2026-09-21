@@ -31,4 +31,4 @@ jobs:
                   ansible-core-version: ${{ matrix.ansible_core }}
                   testing-type: sanity
                   target-python-version: ${{ matrix.python }}
-                  controller-python-version: auto
+                  controller-python-version: ${{ matrix.python }}

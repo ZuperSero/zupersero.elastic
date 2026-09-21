@@ -38,7 +38,7 @@ jobs:
               run: |
                   ansible-galaxy collection build
                   ansible-galaxy collection install zupersero-elastic-*.tar.gz
-                  ansible-galaxy collection install community.general
+                  ansible-galaxy collection install community.docker
                   ansible-galaxy collection install ansible.posix
 
             - name: Run Molecule test

@@ -7,15 +7,20 @@ on:
 jobs:
   release-gate:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ansible_collections/zupersero/elastic
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: ansible_collections/zupersero/elastic
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - name: Install tools
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "ansible-core==2.19.5" ansible-lint ruff antsibull-core antsibull-docs coverage passlib
+          python -m pip install "ansible-core==2.19.5" ansible-lint "ruff==0.14.13" antsibull-core antsibull-docs coverage passlib
       - name: Install collection dependencies
         run: ansible-galaxy collection install -r extensions/molecule/elasticsearch/collections.yml
       - name: Static and unit validation

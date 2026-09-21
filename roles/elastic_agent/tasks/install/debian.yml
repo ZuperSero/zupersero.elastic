@@ -6,4 +6,3 @@
       - gzip
       - tar
     state: present
-    update_cache: true

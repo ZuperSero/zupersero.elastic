@@ -6,7 +6,6 @@ elasticsearch_version: "9.2.1"
 
 elasticsearch_allow_downgrade: false
 
-elasticsearch_install_method: "package" # package or tar
 elasticsearch_download_timeout: 30
 elasticsearch_package_install_timeout: 1800
 
@@ -45,5 +44,3 @@ elasticsearch_jvm_extra_options: ""
 elasticsearch_security_enable_default: false
 
 elasticsearch_secure_config: {}
-
-elasticsearch_bootstrap_password: "changeme"

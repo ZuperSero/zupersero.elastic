@@ -29,7 +29,6 @@ tags:
   - search
 
 dependencies:
-  community.general: ">=12.2.0"
   ansible.posix: ">=2.1.0"
 
 repository: https://github.com/ZuperSero/zupersero.elastic
@@ -48,13 +47,6 @@ build_ignore:
   - .pytest_cache
   - .ruff_cache
   - .venv
-  - AGENTS.md
-  - elastic-start-local
-  - error-start-local.log
   - extensions
   - justfile
-  - start-local
-  - start-local.1
-  - start-local.2
-  - start-local.3
   - tests

@@ -45,13 +45,6 @@ argument_specs:
         description: Elasticsearch home directory
         type: str
         default: "/usr/share/elasticsearch"
-      elasticsearch_install_method:
-        description: Installation method (package or tar)
-        type: str
-        default: "package"
-        choices:
-          - package
-          - tar
       elasticsearch_allow_downgrade:
         description: Allow downgrading Elasticsearch
         type: bool
@@ -100,6 +93,5 @@ argument_specs:
         type: dict
         default: {}
       elasticsearch_bootstrap_password:
-        description: Bootstrap password for security setup
+        description: Bootstrap password for security setup. Required when elasticsearch_bootstrap is true.
         type: str
-        default: "changeme"

@@ -1,6 +1,7 @@
 # Copyright (c) 2025, zupersero
 # GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
 # SPDX-License-Identifier: GPL-3.0-or-later
+# pylint: disable=disallowed-name
 
 from __future__ import annotations
 
@@ -192,6 +193,7 @@ requirements:
 notes:
   - Authentication uses I(auth_api_key), I(bearer_token), or I(auth_username)+I(auth_password).
   - Passwords are not returned by the API and cannot be read for comparison.
+  - Check mode predicts creation, updates, and deletion without sending mutating requests.
 '''
 
 EXAMPLES = r'''
@@ -268,89 +270,157 @@ changed:
   description: Whether any change was made.
   returned: always
   type: bool
+diff:
+  description: Desired-field projection before and after reconciliation.
+  returned: always
+  type: dict
+  contains:
+    before:
+      description: Current values for fields under management.
+      type: dict
+    after:
+      description: Desired values for fields under management.
+      type: dict
 '''
 
 from typing import Any  # noqa: E402
 
-from ansible_collections.zupersero.elastic.plugins.module_utils import elasticsearch  # noqa: E402
 from ansible.module_utils.basic import AnsibleModule  # noqa: E402
-from ansible.module_utils.common.dict_transformations import recursive_diff  # noqa: E402
+
+from ansible_collections.zupersero.elastic.plugins.module_utils.elasticsearch import (  # noqa: E402
+    ElasticsearchClient,
+    elasticsearch_argument_spec,
+    elasticsearch_mutually_exclusive,
+    elasticsearch_required_together,
+    fail_api_error,
+    sanitize_data,
+)
 
 
-def normalize_user_data(user_data: dict[str, Any]) -> dict[str, Any]:
-    """
-    Normalize user data for comparison.
-    """
-    normalized = {
-        'username': user_data.get('username'),
-        'roles': sorted(user_data.get('roles', [])),
-        'full_name': user_data.get('full_name') or user_data.get('fullName') or '',
-        'email': user_data.get('email', ''),
-        'enabled': user_data.get('enabled', True),
-    }
-
-    if 'metadata' in user_data:
-        normalized['metadata'] = user_data.get('metadata') or {}
-
-    return normalized
+def _desired_user(module: AnsibleModule) -> dict[str, Any]:
+    """Build the sparse user fields explicitly set by this task."""
+    desired: dict[str, Any] = {}
+    for field in ("roles", "full_name", "email", "metadata", "enabled"):
+        if module.params.get(field) is not None:
+            desired[field] = module.params[field]
+    return desired
 
 
-def build_desired_user(module: AnsibleModule, current_user: dict[str, Any] | None) -> tuple[dict[str, Any], dict[str, Any]]:
-    """
-    Build the desired user payload and comparison dict.
+def _secrets(module: AnsibleModule, *, creating: bool) -> dict[str, Any]:
+    """Return password/password_hash to apply on this request, if any."""
+    if not creating and module.params["update_password"] != "always":
+        return {}
+    secrets: dict[str, Any] = {}
+    if module.params.get("password") is not None:
+        secrets["password"] = module.params["password"]
+    if module.params.get("password_hash") is not None:
+        secrets["password_hash"] = module.params["password_hash"]
+    return secrets
 
-    Returns:
-        tuple: (payload_for_api, desired_user_state)
-    """
-    params = module.params
 
-    def resolve(field: str, default: Any, alt_keys: tuple[str, ...] = ()) -> Any:
-        value = params.get(field)
-        if value is not None:
-            return value
-        if current_user:
-            for key in (field, *alt_keys):
-                if key in current_user:
-                    return current_user.get(key)
-        return default
+def run_module(
+    module: AnsibleModule,
+    client: ElasticsearchClient | None = None,
+) -> None:
+    """Reconcile an Elasticsearch security user."""
+    client = client or ElasticsearchClient(module)
+    username = module.params["username"]
+    state = module.params["state"]
 
-    desired_state = {
-        'username': params['username'],
-        'roles': resolve('roles', [], ()),
-        'full_name': resolve('full_name', '', ('fullName',)),
-        'email': resolve('email', ''),
-        'enabled': resolve('enabled', True),
-    }
+    read_response, current = client.user.get(username)
+    if read_response.status not in (200, 404):
+        fail_api_error(
+            module,
+            operation="read user",
+            path=client.user.path(username),
+            response=read_response,
+            success_codes=[200, 404],
+        )
 
-    payload: dict[str, Any] = {
-        'roles': desired_state['roles'],
-        'full_name': desired_state['full_name'],
-        'email': desired_state['email'],
-        'enabled': desired_state['enabled'],
-    }
+    if state == "absent":
+        diff = {"before": sanitize_data(current or {}), "after": {}}
+        if current is None:
+            module.exit_json(changed=False, user=None, diff=diff)
+        if module.check_mode:
+            module.exit_json(changed=True, user=sanitize_data(current), diff=diff)
+        response = client.user.delete(username)
+        if response.status not in (200, 404):
+            fail_api_error(
+                module,
+                operation="delete user",
+                path=client.user.path(username),
+                response=response,
+                success_codes=[200, 404],
+            )
+        module.exit_json(changed=True, user=sanitize_data(current), diff=diff)
 
-    metadata_value = resolve('metadata', None)
-    if metadata_value is None and current_user and 'metadata' in current_user:
-        metadata_value = current_user.get('metadata')
-    if metadata_value is not None:
-        desired_state['metadata'] = metadata_value
-        payload['metadata'] = metadata_value
+    desired = _desired_user(module)
+    password = module.params.get("password")
+    password_hash = module.params.get("password_hash")
 
-    password = params.get('password')
-    password_hash = params.get('password_hash')
-    update_password = params.get('update_password')
+    if current is None:
+        if password is None and password_hash is None:
+            module.fail_json(msg="Creating a user requires either password or password_hash")
 
-    if not current_user or update_password == 'always':
-        if password is not None:
-            payload['password'] = password
-        if password_hash is not None:
-            payload['password_hash'] = password_hash
+        predicted = client.user.payload(None, desired)
+        predicted["username"] = username
+        diff = {"before": {}, "after": sanitize_data(predicted)}
+        if module.check_mode:
+            module.exit_json(changed=True, user=sanitize_data(predicted), diff=diff)
 
-    return payload, desired_state
+        response = client.user.create_or_update(
+            username,
+            current=None,
+            desired=desired,
+            secrets=_secrets(module, creating=True),
+        )
+        if response.status not in (200, 201):
+            fail_api_error(
+                module,
+                operation="create user",
+                path=client.user.path(username),
+                response=response,
+                success_codes=[200, 201],
+            )
+        _, current = client.user.get(username)
+        module.exit_json(changed=True, user=sanitize_data(current), diff=diff)
+        return
+
+    changed, diff = client.user.compare(current, desired)
+    password_update_needed = (
+        (password is not None or password_hash is not None)
+        and module.params["update_password"] == "always"
+    )
+    changed = changed or password_update_needed
+
+    if not changed:
+        module.exit_json(changed=False, user=sanitize_data(current), diff=diff)
+
+    if module.check_mode:
+        predicted = client.user.payload(current, desired)
+        predicted["username"] = username
+        module.exit_json(changed=True, user=sanitize_data(predicted), diff=diff)
+
+    response = client.user.create_or_update(
+        username,
+        current=current,
+        desired=desired,
+        secrets=_secrets(module, creating=False),
+    )
+    if response.status not in (200, 201):
+        fail_api_error(
+            module,
+            operation="update user",
+            path=client.user.path(username),
+            response=response,
+            success_codes=[200, 201],
+        )
+    _, current = client.user.get(username)
+    module.exit_json(changed=True, user=sanitize_data(current), diff=diff)
 
 
 def main() -> None:
-    argument_spec = elasticsearch.elasticsearch_argument_spec()
+    argument_spec = elasticsearch_argument_spec()
 
     # Rename auth parameters to avoid collision with managed user fields
     auth_username_spec = argument_spec.pop('username')
@@ -376,13 +446,12 @@ def main() -> None:
     module = AnsibleModule(
         argument_spec=argument_spec,
         supports_check_mode=True,
-        required_if=elasticsearch.elasticsearch_required_if(),
-        required_together=elasticsearch.elasticsearch_required_together(
+        required_together=elasticsearch_required_together(
             username='auth_username',
             password='auth_password',
         ),
         mutually_exclusive=[
-            *elasticsearch.elasticsearch_mutually_exclusive(
+            *elasticsearch_mutually_exclusive(
                 username='auth_username',
                 password='auth_password',
                 api_key='auth_api_key',
@@ -405,7 +474,7 @@ def main() -> None:
     module.params['password'] = auth_password
     module.params['api_key'] = auth_api_key
 
-    client = elasticsearch.ElasticsearchClient(module)
+    client = ElasticsearchClient(module)
 
     # Restore managed user fields
     module.params['username'] = managed_username
@@ -413,77 +482,7 @@ def main() -> None:
     module.params['password_hash'] = managed_password_hash
     module.params['api_key'] = auth_api_key
 
-    username = managed_username
-    state = module.params['state']
-
-    status_code, current_user = client.user.get(username)
-    user_exists = status_code == 200
-
-    result: dict[str, Any] = {'changed': False}
-
-    if state == 'present':
-        if not user_exists and not (module.params.get('password') or module.params.get('password_hash')):
-            module.fail_json(msg="Creating a user requires either password or password_hash")
-
-        payload, desired_state = build_desired_user(module, current_user if user_exists else None)
-        desired_normalized = normalize_user_data(desired_state)
-
-        if not user_exists:
-            result['changed'] = True
-
-            if module.check_mode:
-                result['user'] = desired_state
-                module.exit_json(**result)
-
-            status_code, response = client.user.create_or_update(username, payload)
-            if status_code not in [200, 201]:
-                error_msg = response.get('error', 'Unknown error') if isinstance(response, dict) else 'Unknown error'
-                module.fail_json(msg=f"Failed to create user: {error_msg}", status_code=status_code, response=response)
-
-            status_code, created_user = client.user.get(username)
-            result['user'] = created_user if status_code == 200 else response
-        else:
-            current_normalized = normalize_user_data(current_user)
-            diff = recursive_diff(current_normalized, desired_normalized)
-
-            password_provided = module.params.get('password') is not None or module.params.get('password_hash') is not None
-            password_update_needed = password_provided and module.params['update_password'] == 'always'
-
-            if diff or password_update_needed:
-                result['changed'] = True
-
-                if module.check_mode:
-                    result['user'] = desired_state
-                    module.exit_json(**result)
-
-                status_code, response = client.user.create_or_update(username, payload)
-                if status_code not in [200, 201]:
-                    error_msg = response.get('error', 'Unknown error') if isinstance(response, dict) else 'Unknown error'
-                    module.fail_json(msg=f"Failed to update user: {error_msg}", status_code=status_code, response=response)
-
-                status_code, updated_user = client.user.get(username)
-                result['user'] = updated_user if status_code == 200 else response
-            else:
-                result['user'] = current_user
-    else:  # state == 'absent'
-        if user_exists:
-            result['changed'] = True
-            result['user'] = current_user if isinstance(current_user, dict) else {'username': username}
-            # Preserve the last observed state in the deletion result.
-            if isinstance(result['user'], dict):
-                result['user'].setdefault('username', username)
-
-            if module.check_mode:
-                module.exit_json(**result)
-
-            status_code, response = client.user.delete(username)
-            if status_code not in [200, 404]:
-                error_msg = response.get('error', 'Unknown error') if isinstance(response, dict) else 'Unknown error'
-                module.fail_json(msg=f"Failed to delete user: {error_msg}", status_code=status_code, response=response)
-
-        # If the user does not exist, nothing to do
-
-    module.exit_json(**result)
+    run_module(module, client)
 
 
 if __name__ == '__main__':
