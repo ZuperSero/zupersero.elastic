@@ -1,0 +1,52 @@
+---
+namespace: zupersero
+
+name: elastic
+
+version: 1.0.0
+
+readme: README.md
+
+authors:
+  - zupersero
+
+description: |
+  An Ansible collection for installing, configuring, and managing Elasticsearch.
+  Kibana roles and API modules are maintained in the zupersero.kibana collection.
+  The 1.0 release provides typed Elasticsearch resource modules, generic API
+  escape hatches, and installation roles for supported Linux platforms.
+
+
+license:
+  - GPL-3.0-or-later
+
+license_file: LICENSE
+
+tags:
+  - elastic
+  - elk
+  - security
+  - search
+
+dependencies:
+  ansible.posix: ">=2.1.0"
+
+repository: https://github.com/ZuperSero/zupersero.elastic
+
+documentation: https://galaxy.ansible.com/ui/repo/published/zupersero/elastic
+
+homepage: https://github.com/ZuperSero/zupersero.elastic
+
+issues: https://github.com/ZuperSero/zupersero.elastic/issues
+
+build_ignore:
+  - .ansible
+  - .build
+  - .github
+  - .gitignore
+  - .pytest_cache
+  - .ruff_cache
+  - .venv
+  - extensions
+  - justfile
+  - tests

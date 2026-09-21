@@ -1,0 +1,28 @@
+---
+dependency:
+  name: galaxy
+  options:
+    ignore-errors: true
+driver:
+  name: docker
+platforms:
+  - name: elastic-agent-ubuntu24.04
+    image: antmelekhin/docker-systemd:ubuntu-24.04
+provisioner:
+  name: ansible
+  playbooks:
+    create: create.yml
+    prepare: prepare.yml
+    converge: converge.yml
+    verify: verify.yml
+    destroy: destroy.yml
+  test_sequence:
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy
+  config_options:
+    defaults:
+      interpreter_python: auto_silent

@@ -1,0 +1,52 @@
+---
+name: Release Gate
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  release-gate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ansible_collections/zupersero/elastic
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ansible_collections/zupersero/elastic
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            "ansible-core==2.19.5" ansible-lint "ruff==0.14.13" \
+            antsibull-core antsibull-docs coverage passlib \
+            pytest pytest-xdist pytest-mock
+      - name: Install collection dependencies
+        run: ansible-galaxy collection install -r extensions/molecule/elasticsearch/collections.yml
+      - name: Static and unit validation
+        run: |
+          ruff check .
+          ansible-lint
+          ansible-test sanity
+          ansible-test units --python 3.11
+      - name: Build documentation
+        run: |
+          ansible-galaxy collection install . --force
+          mkdir -p .build/docs
+          antsibull-docs sphinx-init --use-current --dest-dir .build/docs zupersero.elastic
+          python -m pip install -r .build/docs/requirements.txt
+          (cd .build/docs && ./build.sh)
+          cp docs/environment_variables.rst .build/docs/rst/collections/environment_variables.rst
+          sphinx-build -M html .build/docs/rst .build/docs/build -c .build/docs -W --keep-going
+      - name: Build and inspect artifact
+        run: |
+          ansible-galaxy collection build --output-path /tmp
+          artifact="/tmp/zupersero-elastic-$(awk -F': *' '/^version:/ {print $2; exit}' galaxy.yml | tr -d '[:space:]').tar.gz"
+          test -f "$artifact"
+          mkdir -p /tmp/collections
+          ANSIBLE_COLLECTIONS_PATH=/tmp/collections ansible-galaxy collection install "$artifact"
+          ANSIBLE_COLLECTIONS_PATH=/tmp/collections ansible-doc -t module zupersero.elastic.index >/dev/null
+          ANSIBLE_COLLECTIONS_PATH=/tmp/collections ansible-doc -t role zupersero.elastic.elasticsearch >/dev/null

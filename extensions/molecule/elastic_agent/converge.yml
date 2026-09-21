@@ -1,0 +1,36 @@
+---
+- name: Converge
+  hosts: molecule
+  gather_facts: true
+  tasks:
+    - name: Apply elastic_agent role with reused token
+      ansible.builtin.include_role:
+        name: zupersero.elastic.elastic_agent
+      vars:
+        elastic_agent_version: auto
+        elastic_agent_fleet_url: http://127.0.0.1:8220
+        elastic_agent_policy_id: reuse-policy
+        elastic_agent_kibana_url: http://127.0.0.1:18080
+        elastic_agent_kibana_username: elastic
+        elastic_agent_kibana_password: changeme
+        elastic_agent_elasticsearch_url: http://127.0.0.1:18080
+        elastic_agent_elasticsearch_username: elastic
+        elastic_agent_elasticsearch_password: changeme
+        elastic_agent_validate_certs: false
+        elastic_agent_download_base_url: http://127.0.0.1:18080
+        elastic_agent_api_delegate: "{{ inventory_hostname }}"
+
+    - name: Apply elastic_agent role with created token
+      ansible.builtin.include_role:
+        name: zupersero.elastic.elastic_agent
+      vars:
+        elastic_agent_version: auto
+        elastic_agent_fleet_url: http://127.0.0.1:8220
+        elastic_agent_policy_id: create-policy
+        elastic_agent_kibana_url: http://127.0.0.1:18080
+        elastic_agent_kibana_api_key: test-api-key
+        elastic_agent_elasticsearch_url: http://127.0.0.1:18080
+        elastic_agent_elasticsearch_api_key: test-es-api-key
+        elastic_agent_validate_certs: false
+        elastic_agent_download_base_url: http://127.0.0.1:18080
+        elastic_agent_api_delegate: "{{ inventory_hostname }}"

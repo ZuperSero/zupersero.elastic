@@ -1,0 +1,52 @@
+---
+- name: Read Elasticsearch information
+  module_defaults:
+    zupersero.elastic.elasticsearch_info:
+      urls:
+        - http://localhost:9200
+      username: elastic
+      password: changeme
+  block:
+    - name: Read root information
+      zupersero.elastic.elasticsearch_info:
+        path: /
+      check_mode: true
+      register: root_info
+
+    - name: Assert root information
+      ansible.builtin.assert:
+        that:
+          - root_info is not changed
+          - root_info.status == 200
+          - root_info.objects.version.number is defined
+          - root_info.response.tagline == 'You Know, for Search'
+
+    - name: Extract cluster health status
+      zupersero.elastic.elasticsearch_info:
+        path: _cluster/health
+        response_path: status
+      register: health_info
+
+    - name: Assert extracted information
+      ansible.builtin.assert:
+        that:
+          - health_info is not changed
+          - health_info.objects in ['green', 'yellow', 'red']
+
+    - name: Read through endpoint failover
+      zupersero.elastic.elasticsearch_info:
+        urls:
+          - http://127.0.0.1:1
+          - http://localhost:9200
+        retries: 1
+        retry_pause: 0
+        path: /
+        response_path: version.number
+      register: failover_info
+
+    - name: Assert endpoint failover
+      ansible.builtin.assert:
+        that:
+          - failover_info is not changed
+          - failover_info.status == 200
+          - failover_info.objects is version('8.0.0', '>=')

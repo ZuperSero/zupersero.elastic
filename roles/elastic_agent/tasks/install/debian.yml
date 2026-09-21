@@ -1,0 +1,8 @@
+---
+- name: Install Elastic Agent archive dependencies
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - gzip
+      - tar
+    state: present

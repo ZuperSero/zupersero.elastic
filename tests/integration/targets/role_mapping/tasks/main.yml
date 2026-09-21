@@ -1,0 +1,41 @@
+---
+- name: Test role mapping lifecycle
+  module_defaults:
+    zupersero.elastic.role_mapping:
+      url: http://localhost:9200
+      username: elastic
+      password: changeme
+  vars:
+    mapping: &mapping
+      name: integration-role-mapping
+      enabled: true
+      roles: [monitoring_user]
+      rules: {field: {username: integration-user}}
+  block:
+    - name: Predict role mapping creation
+      zupersero.elastic.role_mapping: *mapping
+      check_mode: true
+      register: predicted
+    - name: Create role mapping
+      zupersero.elastic.role_mapping: *mapping
+      register: created
+    - name: Repeat role mapping creation
+      zupersero.elastic.role_mapping: *mapping
+      register: repeated
+    - name: Update role mapping metadata
+      zupersero.elastic.role_mapping:
+        <<: *mapping
+        metadata: {owner: integration}
+      register: updated
+    - name: Delete role mapping
+      zupersero.elastic.role_mapping: {name: integration-role-mapping, state: absent}
+      register: deleted
+    - name: Repeat role mapping deletion
+      zupersero.elastic.role_mapping: {name: integration-role-mapping, state: absent}
+      register: deleted_again
+    - name: Assert role mapping lifecycle
+      ansible.builtin.assert:
+        that: [predicted is changed, created is changed, repeated is not changed, updated is changed, deleted is changed, deleted_again is not changed]
+  always:
+    - name: Clean up role mapping
+      zupersero.elastic.role_mapping: {name: integration-role-mapping, state: absent}

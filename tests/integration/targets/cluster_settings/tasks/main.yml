@@ -1,0 +1,35 @@
+---
+- name: Test cluster settings lifecycle
+  module_defaults:
+    zupersero.elastic.cluster_settings: &connection
+      url: http://localhost:9200
+      username: elastic
+      password: changeme
+  block:
+    - name: Read original settings
+      zupersero.elastic.elasticsearch_info:
+        <<: *connection
+        path: _cluster/settings
+        query: {flat_settings: "true"}
+      register: original
+    - name: Predict setting
+      zupersero.elastic.cluster_settings:
+        persistent: {cluster.max_shards_per_node: 999}
+      check_mode: true
+      register: predicted
+    - name: Set setting
+      zupersero.elastic.cluster_settings:
+        persistent: {cluster.max_shards_per_node: 999}
+      register: created
+    - name: Repeat setting
+      zupersero.elastic.cluster_settings:
+        persistent: {cluster.max_shards_per_node: 999}
+      register: repeated
+    - name: Assert cluster settings lifecycle
+      ansible.builtin.assert:
+        that: [predicted is changed, created is changed, repeated is not changed]
+  always:
+    - name: Restore setting
+      zupersero.elastic.cluster_settings:
+        persistent:
+          cluster.max_shards_per_node: "{{ original.response.persistent['cluster.max_shards_per_node'] | default(None) }}"

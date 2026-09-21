@@ -1,0 +1,24 @@
+---
+- name: Manage an Elasticsearch index
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  module_defaults:
+    group/zupersero.elastic.elasticsearch:
+      url: "{{ elasticsearch_url }}"
+      username: "{{ elasticsearch_username }}"
+      password: "{{ elasticsearch_password }}"
+      validate_certs: true
+  tasks:
+    - name: Create an index with a dynamic setting and mapping
+      zupersero.elastic.index:
+        name: application-events
+        settings:
+          number_of_replicas: 1
+          refresh_interval: 5s
+        mappings:
+          properties:
+            message:
+              type: text
+            service:
+              type: keyword

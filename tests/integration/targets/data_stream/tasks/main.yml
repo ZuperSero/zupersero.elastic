@@ -1,0 +1,179 @@
+---
+- name: Test Elasticsearch data stream management
+  module_defaults:
+    zupersero.elastic.data_stream:
+      url: http://127.0.0.1:9200
+      username: elastic
+      password: changeme
+    zupersero.elastic.index_template:
+      url: http://127.0.0.1:9200
+      username: elastic
+      password: changeme
+  block:
+    - name: Remove stale data stream fixture
+      zupersero.elastic.data_stream:
+        name: phase1-data-stream-integration
+        state: absent
+
+    - name: Remove stale data stream template fixture
+      zupersero.elastic.index_template:
+        name: phase1-data-stream-integration-template
+        state: absent
+
+    - name: Create composable data stream template fixture
+      zupersero.elastic.index_template:
+        name: phase1-data-stream-integration-template
+        index_patterns:
+          - phase1-data-stream-integration*
+        settings:
+          number_of_replicas: 0
+        mappings:
+          properties:
+            '@timestamp':
+              type: date
+            message:
+              type: keyword
+        data_stream: {}
+
+    - name: Predict data stream creation
+      zupersero.elastic.data_stream:
+        name: phase1-data-stream-integration
+      check_mode: true
+      diff: true
+      register: create_check
+
+    - name: Assert predicted data stream creation
+      ansible.builtin.assert:
+        that:
+          - create_check is changed
+          - create_check.status == 404
+          - create_check.data_stream.name == 'phase1-data-stream-integration'
+          - create_check.diff.before == {}
+          - create_check.diff.after.name == 'phase1-data-stream-integration'
+
+    - name: Verify creation check mode did not create the data stream
+      zupersero.elastic.data_stream:
+        name: phase1-data-stream-integration
+        state: absent
+      register: create_check_read
+
+    - name: Assert data stream remains absent after creation check mode
+      ansible.builtin.assert:
+        that:
+          - create_check_read is not changed
+          - create_check_read.status == 404
+          - create_check_read.data_stream is none
+
+    - name: Create data stream
+      zupersero.elastic.data_stream:
+        name: phase1-data-stream-integration
+      diff: true
+      register: create_result
+
+    - name: Assert data stream creation
+      ansible.builtin.assert:
+        that:
+          - create_result is changed
+          - create_result.status == 200
+          - create_result.data_stream.name == 'phase1-data-stream-integration'
+          - create_result.data_stream.generation == 1
+          - create_result.data_stream.template == 'phase1-data-stream-integration-template'
+          - create_result.data_stream.timestamp_field.name == '@timestamp'
+          - create_result.data_stream.indices | length == 1
+          - create_result.data_stream.indices[0].index_name is match('^\\.ds-phase1-data-stream-integration-')
+          - create_result.data_stream.hidden == false
+          - create_result.data_stream.system == false
+
+    - name: Reconcile created data stream
+      zupersero.elastic.data_stream:
+        name: phase1-data-stream-integration
+      diff: true
+      register: create_idempotent
+
+    - name: Assert created data stream is unchanged
+      ansible.builtin.assert:
+        that:
+          - create_idempotent is not changed
+          - create_idempotent.diff.before == create_idempotent.diff.after
+          - create_idempotent.data_stream.generation == 1
+
+    - name: Read data stream
+      zupersero.elastic.data_stream:
+        name: phase1-data-stream-integration
+      register: read_result
+
+    - name: Assert data stream read is check-safe and structured
+      ansible.builtin.assert:
+        that:
+          - read_result is not changed
+          - read_result.status == 200
+          - read_result.data_stream.name == 'phase1-data-stream-integration'
+          - read_result.data_stream.template == 'phase1-data-stream-integration-template'
+
+    - name: Predict data stream deletion
+      zupersero.elastic.data_stream:
+        name: phase1-data-stream-integration
+        state: absent
+      check_mode: true
+      diff: true
+      register: delete_check
+
+    - name: Assert predicted data stream deletion
+      ansible.builtin.assert:
+        that:
+          - delete_check is changed
+          - delete_check.data_stream.name == 'phase1-data-stream-integration'
+          - delete_check.diff.before.name == 'phase1-data-stream-integration'
+          - delete_check.diff.after == {}
+
+    - name: Read data stream after deletion check mode
+      zupersero.elastic.data_stream:
+        name: phase1-data-stream-integration
+      register: delete_check_read
+
+    - name: Assert deletion check mode did not mutate the data stream
+      ansible.builtin.assert:
+        that:
+          - delete_check_read is not changed
+          - delete_check_read.data_stream.name == 'phase1-data-stream-integration'
+
+    - name: Delete data stream
+      zupersero.elastic.data_stream:
+        name: phase1-data-stream-integration
+        state: absent
+      diff: true
+      register: delete_result
+
+    - name: Assert data stream deletion
+      ansible.builtin.assert:
+        that:
+          - delete_result is changed
+          - delete_result.status == 200
+          - delete_result.data_stream.name == 'phase1-data-stream-integration'
+          - delete_result.diff.after == {}
+
+    - name: Reconcile deleted data stream
+      zupersero.elastic.data_stream:
+        name: phase1-data-stream-integration
+        state: absent
+      diff: true
+      register: delete_idempotent
+
+    - name: Assert repeated data stream deletion is unchanged
+      ansible.builtin.assert:
+        that:
+          - delete_idempotent is not changed
+          - delete_idempotent.status == 404
+          - delete_idempotent.data_stream is none
+          - delete_idempotent.diff.before == {}
+          - delete_idempotent.diff.after == {}
+  always:
+    - name: Always remove data stream fixture
+      zupersero.elastic.data_stream:
+        name: phase1-data-stream-integration
+        state: absent
+
+    - name: Always remove data stream template fixture
+      zupersero.elastic.index_template:
+        name: phase1-data-stream-integration-template
+        state: absent

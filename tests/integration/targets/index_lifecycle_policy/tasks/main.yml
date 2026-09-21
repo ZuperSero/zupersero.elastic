@@ -1,0 +1,489 @@
+---
+- name: Test Elasticsearch index lifecycle policy management
+  module_defaults:
+    zupersero.elastic.index_lifecycle_policy:
+      url: http://127.0.0.1:9200
+      username: elastic
+      password: changeme
+    zupersero.elastic.index_template:
+      url: http://127.0.0.1:9200
+      username: elastic
+      password: changeme
+  block:
+    - name: Predict lifecycle policy creation
+      zupersero.elastic.index_lifecycle_policy:
+        name: phase1-lifecycle-policy-integration
+        phases:
+          hot:
+            actions:
+              rollover:
+                max_docs: 1000
+          delete:
+            min_age: 30d
+            actions:
+              delete: {}
+        metadata:
+          owner: integration
+      check_mode: true
+      diff: true
+      register: create_check
+
+    - name: Assert predicted lifecycle policy creation
+      ansible.builtin.assert:
+        that:
+          - create_check is changed
+          - create_check.status == 404
+          - create_check.lifecycle_policy.name == 'phase1-lifecycle-policy-integration'
+          - create_check.diff.before == {}
+          - create_check.diff.after.phases.delete.min_age == '30d'
+
+    - name: Create lifecycle policy
+      zupersero.elastic.index_lifecycle_policy:
+        name: phase1-lifecycle-policy-integration
+        phases:
+          hot:
+            actions:
+              rollover:
+                max_docs: 1000
+          delete:
+            min_age: 30d
+            actions:
+              delete: {}
+        metadata:
+          owner: integration
+      diff: true
+      register: create_result
+
+    - name: Assert lifecycle policy creation
+      ansible.builtin.assert:
+        that:
+          - create_result is changed
+          - create_result.status == 200
+          - create_result.lifecycle_policy.name == 'phase1-lifecycle-policy-integration'
+          - create_result.lifecycle_policy.version == 1
+          - create_result.lifecycle_policy.phases.hot.min_age == '0ms'
+          - create_result.lifecycle_policy.phases.hot.actions.rollover.max_docs == 1000
+          - create_result.lifecycle_policy.phases.delete.min_age == '30d'
+          - create_result.lifecycle_policy.phases.delete.actions.delete.delete_searchable_snapshot == true
+          - create_result.lifecycle_policy._meta.owner == 'integration'
+          - create_result.lifecycle_policy.in_use_by.indices == []
+
+    - name: Reconcile created lifecycle policy
+      zupersero.elastic.index_lifecycle_policy:
+        name: phase1-lifecycle-policy-integration
+        phases:
+          hot:
+            actions:
+              rollover:
+                max_docs: 1000
+          delete:
+            min_age: 30d
+            actions:
+              delete: {}
+        metadata:
+          owner: integration
+      diff: true
+      register: create_idempotent
+
+    - name: Assert created lifecycle policy is unchanged
+      ansible.builtin.assert:
+        that:
+          - create_idempotent is not changed
+          - create_idempotent.diff.before == create_idempotent.diff.after
+          - create_idempotent.lifecycle_policy.version == 1
+
+    - name: Predict partial lifecycle policy update
+      zupersero.elastic.index_lifecycle_policy:
+        name: phase1-lifecycle-policy-integration
+        phases:
+          warm:
+            min_age: 1d
+            actions:
+              forcemerge:
+                max_num_segments: 1
+        metadata:
+          purpose: attachment
+      check_mode: true
+      diff: true
+      register: update_check
+
+    - name: Assert predicted partial lifecycle policy update
+      ansible.builtin.assert:
+        that:
+          - update_check is changed
+          - update_check.lifecycle_policy.phases.hot.actions.rollover.max_docs == 1000
+          - update_check.lifecycle_policy.phases.warm.min_age == '1d'
+          - update_check.lifecycle_policy.phases.delete.min_age == '30d'
+          - update_check.lifecycle_policy._meta.owner == 'integration'
+          - update_check.lifecycle_policy._meta.purpose == 'attachment'
+          - update_check.lifecycle_policy.version is not defined
+
+    - name: Read lifecycle policy after update check mode
+      zupersero.elastic.index_lifecycle_policy:
+        name: phase1-lifecycle-policy-integration
+      register: update_check_read
+
+    - name: Assert update check mode did not mutate lifecycle policy
+      ansible.builtin.assert:
+        that:
+          - update_check_read is not changed
+          - update_check_read.lifecycle_policy.version == 1
+          - update_check_read.lifecycle_policy.phases.warm is not defined
+          - update_check_read.lifecycle_policy._meta.purpose is not defined
+
+    - name: Partially update lifecycle policy
+      zupersero.elastic.index_lifecycle_policy:
+        name: phase1-lifecycle-policy-integration
+        phases:
+          warm:
+            min_age: 1d
+            actions:
+              forcemerge:
+                max_num_segments: 1
+        metadata:
+          purpose: attachment
+      diff: true
+      register: update_result
+
+    - name: Assert lifecycle policy update preserves omitted state
+      ansible.builtin.assert:
+        that:
+          - update_result is changed
+          - update_result.status == 200
+          - update_result.lifecycle_policy.version == 2
+          - update_result.lifecycle_policy.phases.hot.actions.rollover.max_docs == 1000
+          - update_result.lifecycle_policy.phases.warm.actions.forcemerge.max_num_segments == 1
+          - update_result.lifecycle_policy.phases.delete.min_age == '30d'
+          - update_result.lifecycle_policy._meta.owner == 'integration'
+          - update_result.lifecycle_policy._meta.purpose == 'attachment'
+
+    - name: Reconcile partial lifecycle policy update
+      zupersero.elastic.index_lifecycle_policy:
+        name: phase1-lifecycle-policy-integration
+        phases:
+          warm:
+            min_age: 1d
+            actions:
+              forcemerge:
+                max_num_segments: 1
+        metadata:
+          purpose: attachment
+      diff: true
+      register: update_idempotent
+
+    - name: Assert updated lifecycle policy is unchanged
+      ansible.builtin.assert:
+        that:
+          - update_idempotent is not changed
+          - update_idempotent.diff.before == update_idempotent.diff.after
+          - update_idempotent.lifecycle_policy.version == 2
+
+    - name: Predict authoritative lifecycle policy replacement
+      zupersero.elastic.index_lifecycle_policy:
+        name: phase1-lifecycle-policy-integration
+        replace: true
+        phases:
+          hot:
+            actions:
+              rollover:
+                max_primary_shard_size: 40gb
+          delete:
+            min_age: 14d
+            actions:
+              delete: {}
+        metadata: {}
+      check_mode: true
+      diff: true
+      register: replace_check
+
+    - name: Assert predicted authoritative replacement
+      ansible.builtin.assert:
+        that:
+          - replace_check is changed
+          - replace_check.lifecycle_policy.phases.hot.actions.rollover.max_primary_shard_size == '40gb'
+          - replace_check.lifecycle_policy.phases.warm is not defined
+          - replace_check.lifecycle_policy.phases.delete.min_age == '14d'
+          - replace_check.lifecycle_policy._meta == {}
+
+    - name: Read lifecycle policy after replacement check mode
+      zupersero.elastic.index_lifecycle_policy:
+        name: phase1-lifecycle-policy-integration
+      register: replace_check_read
+
+    - name: Assert replacement check mode did not mutate lifecycle policy
+      ansible.builtin.assert:
+        that:
+          - replace_check_read.lifecycle_policy.version == 2
+          - replace_check_read.lifecycle_policy.phases.warm.min_age == '1d'
+          - replace_check_read.lifecycle_policy._meta.owner == 'integration'
+
+    - name: Authoritatively replace lifecycle policy
+      zupersero.elastic.index_lifecycle_policy:
+        name: phase1-lifecycle-policy-integration
+        replace: true
+        phases:
+          hot:
+            actions:
+              rollover:
+                max_primary_shard_size: 40gb
+          delete:
+            min_age: 14d
+            actions:
+              delete: {}
+        metadata: {}
+      diff: true
+      register: replace_result
+
+    - name: Assert authoritative lifecycle policy replacement
+      ansible.builtin.assert:
+        that:
+          - replace_result is changed
+          - replace_result.lifecycle_policy.version == 3
+          - replace_result.lifecycle_policy.phases.hot.actions.rollover.max_primary_shard_size == '40gb'
+          - replace_result.lifecycle_policy.phases.warm is not defined
+          - replace_result.lifecycle_policy.phases.delete.min_age == '14d'
+          - replace_result.lifecycle_policy._meta | default({}) == {}
+
+    - name: Reconcile authoritative lifecycle policy replacement
+      zupersero.elastic.index_lifecycle_policy:
+        name: phase1-lifecycle-policy-integration
+        replace: true
+        phases:
+          hot:
+            actions:
+              rollover:
+                max_primary_shard_size: 40gb
+          delete:
+            min_age: 14d
+            actions:
+              delete: {}
+        metadata: {}
+      diff: true
+      register: replace_idempotent
+
+    - name: Assert replaced lifecycle policy is unchanged
+      ansible.builtin.assert:
+        that:
+          - replace_idempotent is not changed
+          - replace_idempotent.diff.before == replace_idempotent.diff.after
+          - replace_idempotent.lifecycle_policy.version == 3
+
+    - name: Predict alias-based lifecycle attachment
+      zupersero.elastic.index_template:
+        name: phase1-lifecycle-template-integration
+        index_patterns:
+          - phase1-lifecycle-events-*
+        lifecycle:
+          name: phase1-lifecycle-policy-integration
+          rollover_alias: phase1-lifecycle-events
+      check_mode: true
+      diff: true
+      register: attachment_check
+
+    - name: Assert predicted lifecycle attachment
+      ansible.builtin.assert:
+        that:
+          - attachment_check is changed
+          - attachment_check.index_template.template.settings['index.lifecycle.name'] == 'phase1-lifecycle-policy-integration'
+          - attachment_check.index_template.template.settings['index.lifecycle.rollover_alias'] == 'phase1-lifecycle-events'
+
+    - name: Attach lifecycle policy to alias-based template
+      zupersero.elastic.index_template:
+        name: phase1-lifecycle-template-integration
+        index_patterns:
+          - phase1-lifecycle-events-*
+        lifecycle:
+          name: phase1-lifecycle-policy-integration
+          rollover_alias: phase1-lifecycle-events
+      diff: true
+      register: attachment_result
+
+    - name: Assert alias-based lifecycle attachment
+      ansible.builtin.assert:
+        that:
+          - attachment_result is changed
+          - attachment_result.index_template.template.settings.index.lifecycle.name == 'phase1-lifecycle-policy-integration'
+          - attachment_result.index_template.template.settings.index.lifecycle.rollover_alias == 'phase1-lifecycle-events'
+          - attachment_result.index_template.data_stream is not defined
+
+    - name: Reconcile alias-based lifecycle attachment
+      zupersero.elastic.index_template:
+        name: phase1-lifecycle-template-integration
+        index_patterns:
+          - phase1-lifecycle-events-*
+        lifecycle:
+          name: phase1-lifecycle-policy-integration
+          rollover_alias: phase1-lifecycle-events
+      register: attachment_idempotent
+
+    - name: Assert lifecycle attachment is unchanged
+      ansible.builtin.assert:
+        that:
+          - attachment_idempotent is not changed
+
+    - name: Read policy usage after template attachment
+      zupersero.elastic.index_lifecycle_policy:
+        name: phase1-lifecycle-policy-integration
+      register: attached_policy
+
+    - name: Assert lifecycle policy reports template attachment
+      ansible.builtin.assert:
+        that:
+          - attached_policy is not changed
+          - "'phase1-lifecycle-template-integration' in attached_policy.lifecycle_policy.in_use_by.composable_templates"
+
+    - name: Predict lifecycle detachment
+      zupersero.elastic.index_template:
+        name: phase1-lifecycle-template-integration
+        lifecycle: {}
+      check_mode: true
+      diff: true
+      register: detach_check
+
+    - name: Assert predicted lifecycle detachment
+      ansible.builtin.assert:
+        that:
+          - detach_check is changed
+          - detach_check.index_template.template.settings['lifecycle.name'] is none
+          - detach_check.index_template.template.settings['lifecycle.rollover_alias'] is none
+
+    - name: Detach lifecycle policy from template
+      zupersero.elastic.index_template:
+        name: phase1-lifecycle-template-integration
+        lifecycle: {}
+      diff: true
+      register: detach_result
+
+    - name: Assert lifecycle policy detachment
+      ansible.builtin.assert:
+        that:
+          - detach_result is changed
+          - detach_result.index_template.template.settings.index.lifecycle.name is none
+          - detach_result.index_template.template.settings.index.lifecycle.rollover_alias is none
+
+    - name: Reconcile lifecycle policy detachment
+      zupersero.elastic.index_template:
+        name: phase1-lifecycle-template-integration
+        lifecycle: {}
+      register: detach_idempotent
+
+    - name: Assert lifecycle detachment is unchanged
+      ansible.builtin.assert:
+        that:
+          - detach_idempotent is not changed
+
+    - name: Replace template with data-stream lifecycle attachment
+      zupersero.elastic.index_template:
+        name: phase1-lifecycle-template-integration
+        replace: true
+        index_patterns:
+          - phase1-lifecycle-stream-*
+        data_stream: {}
+        lifecycle:
+          name: phase1-lifecycle-policy-integration
+      diff: true
+      register: data_stream_attachment
+
+    - name: Assert data-stream lifecycle attachment has no rollover alias
+      ansible.builtin.assert:
+        that:
+          - data_stream_attachment is changed
+          - data_stream_attachment.index_template.data_stream.hidden == false
+          - data_stream_attachment.index_template.template.settings.index.lifecycle.name == 'phase1-lifecycle-policy-integration'
+          - data_stream_attachment.index_template.template.settings.index.lifecycle.rollover_alias is not defined
+
+    - name: Reconcile data-stream lifecycle attachment
+      zupersero.elastic.index_template:
+        name: phase1-lifecycle-template-integration
+        replace: true
+        index_patterns:
+          - phase1-lifecycle-stream-*
+        data_stream: {}
+        lifecycle:
+          name: phase1-lifecycle-policy-integration
+      register: data_stream_idempotent
+
+    - name: Assert data-stream lifecycle attachment is unchanged
+      ansible.builtin.assert:
+        that:
+          - data_stream_idempotent is not changed
+
+    - name: Delete lifecycle attachment template
+      zupersero.elastic.index_template:
+        name: phase1-lifecycle-template-integration
+        state: absent
+      register: template_delete
+
+    - name: Assert lifecycle attachment template deletion
+      ansible.builtin.assert:
+        that:
+          - template_delete is changed
+
+    - name: Read managed lifecycle policy
+      zupersero.elastic.index_lifecycle_policy:
+        name: phase1-lifecycle-policy-integration
+      register: read_result
+
+    - name: Assert managed lifecycle policy read outcome
+      ansible.builtin.assert:
+        that:
+          - read_result is not changed
+          - read_result.status == 200
+          - read_result.lifecycle_policy.name == 'phase1-lifecycle-policy-integration'
+          - read_result.lifecycle_policy.version == 3
+          - read_result.lifecycle_policy.in_use_by.composable_templates == []
+
+    - name: Predict lifecycle policy deletion
+      zupersero.elastic.index_lifecycle_policy:
+        name: phase1-lifecycle-policy-integration
+        state: absent
+      check_mode: true
+      diff: true
+      register: delete_check
+
+    - name: Assert predicted lifecycle policy deletion
+      ansible.builtin.assert:
+        that:
+          - delete_check is changed
+          - delete_check.lifecycle_policy.name == 'phase1-lifecycle-policy-integration'
+          - delete_check.diff.after == {}
+
+    - name: Delete lifecycle policy
+      zupersero.elastic.index_lifecycle_policy:
+        name: phase1-lifecycle-policy-integration
+        state: absent
+      diff: true
+      register: delete_result
+
+    - name: Assert lifecycle policy deletion
+      ansible.builtin.assert:
+        that:
+          - delete_result is changed
+          - delete_result.status == 200
+          - delete_result.lifecycle_policy.name == 'phase1-lifecycle-policy-integration'
+
+    - name: Delete missing lifecycle policy
+      zupersero.elastic.index_lifecycle_policy:
+        name: phase1-lifecycle-policy-integration
+        state: absent
+      register: delete_idempotent
+
+    - name: Assert missing lifecycle policy deletion is unchanged
+      ansible.builtin.assert:
+        that:
+          - delete_idempotent is not changed
+          - delete_idempotent.status == 404
+          - delete_idempotent.lifecycle_policy is none
+
+  always:
+    - name: Cleanup lifecycle attachment template
+      zupersero.elastic.index_template:
+        name: phase1-lifecycle-template-integration
+        state: absent
+      failed_when: false
+
+    - name: Cleanup lifecycle policy
+      zupersero.elastic.index_lifecycle_policy:
+        name: phase1-lifecycle-policy-integration
+        state: absent
+      failed_when: false

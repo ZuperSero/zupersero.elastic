@@ -1,0 +1,181 @@
+---
+- name: Test generic Elasticsearch object management
+  module_defaults:
+    zupersero.elastic.elasticsearch_object:
+      url: http://localhost:9200
+      username: elastic
+      password: changeme
+  block:
+    - name: Predict pipeline creation
+      zupersero.elastic.elasticsearch_object:
+        path: _ingest/pipeline
+        id: phase0-generic-object
+        response_path: phase0-generic-object
+        payload:
+          description: Phase 0 generic object
+          processors:
+            - set:
+                field: phase
+                value: zero
+      check_mode: true
+      diff: true
+      register: create_check
+
+    - name: Assert predicted creation
+      ansible.builtin.assert:
+        that:
+          - create_check is changed
+          - create_check.object.description == 'Phase 0 generic object'
+          - create_check.diff.before == {}
+
+    - name: Create pipeline
+      zupersero.elastic.elasticsearch_object:
+        path: _ingest/pipeline
+        id: phase0-generic-object
+        response_path: phase0-generic-object
+        payload:
+          description: Phase 0 generic object
+          processors:
+            - set:
+                field: phase
+                value: zero
+      register: create_result
+
+    - name: Assert pipeline creation
+      ansible.builtin.assert:
+        that:
+          - create_result is changed
+          - create_result.status == 200
+          - create_result.object.processors | length == 1
+
+    - name: Reconcile pipeline
+      zupersero.elastic.elasticsearch_object:
+        path: _ingest/pipeline
+        id: phase0-generic-object
+        response_path: phase0-generic-object
+        payload:
+          description: Phase 0 generic object
+          processors:
+            - set:
+                field: phase
+                value: zero
+      register: unchanged_result
+
+    - name: Assert pipeline is unchanged
+      ansible.builtin.assert:
+        that:
+          - unchanged_result is not changed
+          - unchanged_result.diff.before == unchanged_result.diff.after
+
+    - name: Predict pipeline update
+      zupersero.elastic.elasticsearch_object:
+        path: _ingest/pipeline
+        id: phase0-generic-object
+        response_path: phase0-generic-object
+        payload:
+          description: Updated Phase 0 generic object
+          processors:
+            - set:
+                field: phase
+                value: foundation
+      check_mode: true
+      diff: true
+      register: update_check
+
+    - name: Assert predicted update
+      ansible.builtin.assert:
+        that:
+          - update_check is changed
+          - update_check.diff.before.description == 'Phase 0 generic object'
+          - update_check.diff.after.description == 'Updated Phase 0 generic object'
+
+    - name: Update pipeline
+      zupersero.elastic.elasticsearch_object:
+        path: _ingest/pipeline
+        id: phase0-generic-object
+        response_path: phase0-generic-object
+        payload:
+          description: Updated Phase 0 generic object
+          processors:
+            - set:
+                field: phase
+                value: foundation
+      register: update_result
+
+    - name: Assert pipeline update
+      ansible.builtin.assert:
+        that:
+          - update_result is changed
+          - update_result.object.description == 'Updated Phase 0 generic object'
+
+    - name: Reconcile updated pipeline
+      zupersero.elastic.elasticsearch_object:
+        path: _ingest/pipeline
+        id: phase0-generic-object
+        response_path: phase0-generic-object
+        payload:
+          description: Updated Phase 0 generic object
+          processors:
+            - set:
+                field: phase
+                value: foundation
+      register: updated_unchanged_result
+
+    - name: Assert updated pipeline is unchanged
+      ansible.builtin.assert:
+        that:
+          - updated_unchanged_result is not changed
+
+    - name: Predict pipeline deletion
+      zupersero.elastic.elasticsearch_object:
+        path: _ingest/pipeline
+        id: phase0-generic-object
+        response_path: phase0-generic-object
+        state: absent
+      check_mode: true
+      diff: true
+      register: delete_check
+
+    - name: Assert predicted deletion
+      ansible.builtin.assert:
+        that:
+          - delete_check is changed
+          - delete_check.object.description == 'Updated Phase 0 generic object'
+          - delete_check.diff.after == {}
+
+    - name: Delete pipeline
+      zupersero.elastic.elasticsearch_object:
+        path: _ingest/pipeline
+        id: phase0-generic-object
+        response_path: phase0-generic-object
+        state: absent
+      register: delete_result
+
+    - name: Assert pipeline deletion
+      ansible.builtin.assert:
+        that:
+          - delete_result is changed
+          - delete_result.status == 200
+
+    - name: Delete missing pipeline
+      zupersero.elastic.elasticsearch_object:
+        path: _ingest/pipeline
+        id: phase0-generic-object
+        response_path: phase0-generic-object
+        state: absent
+      register: missing_delete_result
+
+    - name: Assert missing pipeline is unchanged
+      ansible.builtin.assert:
+        that:
+          - missing_delete_result is not changed
+          - missing_delete_result.object is none
+
+  always:
+    - name: Cleanup generic pipeline
+      zupersero.elastic.elasticsearch_object:
+        path: _ingest/pipeline
+        id: phase0-generic-object
+        response_path: phase0-generic-object
+        state: absent
+      failed_when: false

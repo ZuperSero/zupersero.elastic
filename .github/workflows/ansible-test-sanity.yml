@@ -1,0 +1,37 @@
+name: Sanity Tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'plugins/**'
+      - 'roles/**'
+      - '.github/workflows/ansible-test-sanity.yml'
+  push:
+    branches: [dev]
+    paths:
+      - 'plugins/**'
+      - 'roles/**'
+      - '.github/workflows/ansible-test-sanity.yml'
+
+jobs:
+  ansible-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.12', '3.13']
+        ansible_core: ['2.19.5']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ansible_collections/zupersero/elastic
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install Ansible
+        run: python -m pip install "ansible-core==${{ matrix.ansible_core }}"
+      - name: Run sanity tests (Python ${{ matrix.python }})
+        working-directory: ansible_collections/zupersero/elastic
+        run: ansible-test sanity --python ${{ matrix.python }} --color yes

@@ -1,0 +1,47 @@
+---
+- name: Test index alias lifecycle
+  module_defaults:
+    group/zupersero.elastic.elasticsearch:
+      url: http://localhost:9200
+      username: elastic
+      password: changeme
+  block:
+    - name: Create first alias index
+      zupersero.elastic.index: {name: alias-test-1}
+    - name: Create second alias index
+      zupersero.elastic.index: {name: alias-test-2}
+    - name: Predict alias creation
+      zupersero.elastic.index_alias:
+        name: alias-test
+        indices: {alias-test-1: {is_write_index: true}}
+      check_mode: true
+      register: predicted
+    - name: Create alias
+      zupersero.elastic.index_alias:
+        name: alias-test
+        indices: {alias-test-1: {is_write_index: true}}
+      register: created
+    - name: Repeat alias creation
+      zupersero.elastic.index_alias:
+        name: alias-test
+        indices: {alias-test-1: {is_write_index: true}}
+      register: repeated
+    - name: Update alias membership
+      zupersero.elastic.index_alias:
+        name: alias-test
+        indices: {alias-test-1: {}, alias-test-2: {is_write_index: true}}
+      register: updated
+    - name: Delete alias
+      zupersero.elastic.index_alias: {name: alias-test, state: absent}
+      register: deleted
+    - name: Repeat alias deletion
+      zupersero.elastic.index_alias: {name: alias-test, state: absent}
+      register: deleted_again
+    - name: Assert alias lifecycle
+      ansible.builtin.assert:
+        that: [predicted is changed, created is changed, repeated is not changed, updated is changed, deleted is changed, deleted_again is not changed]
+  always:
+    - name: Delete first alias index
+      zupersero.elastic.index: {name: alias-test-1, state: absent}
+    - name: Delete second alias index
+      zupersero.elastic.index: {name: alias-test-2, state: absent}

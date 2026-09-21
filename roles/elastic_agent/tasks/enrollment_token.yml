@@ -1,0 +1,84 @@
+---
+- name: List Fleet enrollment API keys
+  ansible.builtin.uri:
+    url: "{{ elastic_agent_kibana_url.rstrip('/') }}/api/fleet/enrollment_api_keys"
+    method: GET
+    user: "{{ elastic_agent_kibana_username | default(omit, true) }}"
+    password: "{{ elastic_agent_kibana_password | default(omit, true) }}"
+    force_basic_auth: "{{ elastic_agent_kibana_api_key | length == 0 }}"
+    headers: "{{ _elastic_agent_kibana_headers }}"
+    validate_certs: "{{ elastic_agent_validate_certs }}"
+    return_content: true
+    status_code: 200
+  vars:
+    _elastic_agent_kibana_auth_header: >-
+      {{
+        {'Authorization': 'ApiKey ' + elastic_agent_kibana_api_key}
+        if elastic_agent_kibana_api_key | length > 0
+        else {}
+      }}
+    _elastic_agent_kibana_headers: "{{ {'kbn-xsrf': 'true'} | combine(_elastic_agent_kibana_auth_header) }}"
+  register: _elastic_agent_enrollment_keys
+  no_log: true
+  delegate_to: "{{ elastic_agent_api_delegate }}"
+
+- name: Select active Fleet enrollment token for policy
+  ansible.builtin.set_fact:
+    _elastic_agent_enrollment_token: >-
+      {{
+        (
+          _elastic_agent_enrollment_keys.json['items']
+          | default([])
+          | selectattr('policy_id', 'equalto', elastic_agent_policy_id)
+          | selectattr('active', 'equalto', true)
+          | map(attribute='api_key')
+          | list
+          | first
+        ) | default('', true)
+      }}
+  no_log: true
+
+- name: Create Fleet enrollment API key
+  ansible.builtin.uri:
+    url: "{{ elastic_agent_kibana_url.rstrip('/') }}/api/fleet/enrollment_api_keys"
+    method: POST
+    user: "{{ elastic_agent_kibana_username | default(omit, true) }}"
+    password: "{{ elastic_agent_kibana_password | default(omit, true) }}"
+    force_basic_auth: "{{ elastic_agent_kibana_api_key | length == 0 }}"
+    headers: "{{ _elastic_agent_kibana_headers }}"
+    body_format: json
+    body:
+      name: "{{ elastic_agent_enrollment_token_name }}"
+      policy_id: "{{ elastic_agent_policy_id }}"
+    validate_certs: "{{ elastic_agent_validate_certs }}"
+    return_content: true
+    status_code: 200
+  vars:
+    _elastic_agent_kibana_auth_header: >-
+      {{
+        {'Authorization': 'ApiKey ' + elastic_agent_kibana_api_key}
+        if elastic_agent_kibana_api_key | length > 0
+        else {}
+      }}
+    _elastic_agent_kibana_headers: >-
+      {{
+        {'kbn-xsrf': 'true', 'Content-Type': 'application/json'}
+        | combine(_elastic_agent_kibana_auth_header)
+      }}
+  register: _elastic_agent_created_enrollment_key
+  no_log: true
+  delegate_to: "{{ elastic_agent_api_delegate }}"
+  when: _elastic_agent_enrollment_token | length == 0
+
+- name: Set created Fleet enrollment token
+  ansible.builtin.set_fact:
+    _elastic_agent_enrollment_token: "{{ _elastic_agent_created_enrollment_key.json.item.api_key }}"
+  no_log: true
+  when: _elastic_agent_enrollment_token | length == 0
+
+- name: Validate Fleet enrollment token
+  ansible.builtin.assert:
+    that:
+      - _elastic_agent_enrollment_token | length > 0
+    fail_msg: "Unable to resolve a Fleet enrollment token for the requested policy."
+  no_log: true

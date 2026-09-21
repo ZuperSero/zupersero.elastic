@@ -1,0 +1,52 @@
+---
+- name: Test snapshot lifecycle policy
+  module_defaults:
+    group/zupersero.elastic.elasticsearch:
+      url: http://localhost:9200
+      username: elastic
+      password: changeme
+  vars:
+    policy: &policy
+      name: integration-snapshot-policy
+      schedule: 0 30 1 * * ?
+      repository: integration-slm-repository
+      snapshot_name: <integration-{now/d}>
+      retention: {expire_after: 30d, min_count: 1, max_count: 5}
+  block:
+    - name: Create backing snapshot repository
+      zupersero.elastic.snapshot_repository:
+        name: integration-slm-repository
+        type: fs
+        settings: {location: /tmp/snapshots/slm}
+    - name: Predict policy creation
+      zupersero.elastic.snapshot_lifecycle_policy: *policy
+      check_mode: true
+      register: predicted
+    - name: Create policy
+      zupersero.elastic.snapshot_lifecycle_policy: *policy
+      register: created
+    - name: Repeat policy creation
+      zupersero.elastic.snapshot_lifecycle_policy: *policy
+      register: repeated
+    - name: Update policy retention
+      zupersero.elastic.snapshot_lifecycle_policy:
+        name: integration-snapshot-policy
+        schedule: 0 30 1 * * ?
+        repository: integration-slm-repository
+        snapshot_name: <integration-{now/d}>
+        retention: {expire_after: 14d, min_count: 1, max_count: 3}
+      register: updated
+    - name: Delete policy
+      zupersero.elastic.snapshot_lifecycle_policy: {name: integration-snapshot-policy, state: absent}
+      register: deleted
+    - name: Repeat policy deletion
+      zupersero.elastic.snapshot_lifecycle_policy: {name: integration-snapshot-policy, state: absent}
+      register: deleted_again
+    - name: Assert policy lifecycle
+      ansible.builtin.assert:
+        that: [predicted is changed, created is changed, repeated is not changed, updated is changed, deleted is changed, deleted_again is not changed]
+  always:
+    - name: Clean up snapshot policy
+      zupersero.elastic.snapshot_lifecycle_policy: {name: integration-snapshot-policy, state: absent}
+    - name: Clean up snapshot repository
+      zupersero.elastic.snapshot_repository: {name: integration-slm-repository, state: absent}
