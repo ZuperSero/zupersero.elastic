@@ -12,6 +12,7 @@
       vars:
         elasticsearch_version: "{{ elasticsearch_molecule_version }}"
         elasticsearch_bootstrap: true
+        elasticsearch_bootstrap_password: "molecule-test-password"
         elasticsearch_jvm_heap_size: "512m"
         elasticsearch_package_install_timeout: 900
         elasticsearch_systemd_service_overrides: |
