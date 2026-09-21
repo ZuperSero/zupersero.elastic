@@ -17,8 +17,8 @@ jobs:
         strategy:
             matrix:
                 scenario: ["elasticsearch", "elastic_agent"]
-                elastic: ["9.2.0", "9.4.0", "9.5.0"]
-                python: ["3.11", "3.12", "3.13"]
+                elastic: ["9.3.8", "9.4.7", "9.5.4"]
+                python: ["3.12", "3.14"]
             fail-fast: false
             max-parallel: 1
         steps:
